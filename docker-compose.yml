@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  fastapi:
+    build: .
+    container_name: fastapi_app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8081 --reload
+    ports:
+      - "8081:8081"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - mongodb
+    volumes:
+      - .:/app
+
+  celery_worker:
+    build: .
+    container_name: celery_worker
+    command: celery -A app.core.celery_app.celery_app worker --loglevel=info -Q document
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    volumes:
+      - .:/app
+
+  redis:
+    image: redis:6-alpine
+    container_name: redis_broker
+    ports:
+      - "6379:6379"
+
+  mongodb:
+    image: mongo:6
+    container_name: mongo_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:
