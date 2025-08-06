@@ -1,13 +1,13 @@
-# services/qa_service.py (Updated to match your model configuration)
 import os
+import logging
 from pathlib import Path
 import re
 from transformers import AutoModelForQuestionAnswering, AutoTokenizer, pipeline
 import torch
 from typing import Dict, List, Optional
-import logging
 from app.models.document import AcceptedDocument
 from bson import ObjectId
+from app.utils.model_loader import load_model_for_qa
 
 logger = logging.getLogger(__name__)
 
@@ -18,23 +18,47 @@ LEGAL_QA_MODEL_DIR = Path(__file__).resolve().parent.parent / "ai/models/roberta
 GENERAL_QA_MODEL_DIR = GENERAL_QA_MODEL_DIR.as_posix()
 LEGAL_QA_MODEL_DIR = LEGAL_QA_MODEL_DIR.as_posix()
 
-# Check if models exist
-if not Path(GENERAL_QA_MODEL_DIR).exists():
-    raise FileNotFoundError(f"General QA model not found at {GENERAL_QA_MODEL_DIR}")
+# === Load General QA Model Using Smart Loader ===
+general_qa_pipeline = None
+try:
+    general_model, general_tokenizer = load_model_for_qa(GENERAL_QA_MODEL_DIR, "microsoft/deberta-v3-large")
+    general_qa_pipeline = pipeline("question-answering", model=general_model, tokenizer=general_tokenizer)
+    logger.info("✅ General QA model loaded successfully")
+except Exception as e:
+    logger.error(f"❌ Failed to load general QA model: {e}")
+    # Fallback to direct HuggingFace loading
+    try:
+        logger.info("🔄 Attempting fallback to direct HuggingFace loading for general QA...")
+        general_model = AutoModelForQuestionAnswering.from_pretrained("microsoft/deberta-v3-large")
+        general_tokenizer = AutoTokenizer.from_pretrained("microsoft/deberta-v3-large")
+        general_qa_pipeline = pipeline("question-answering", model=general_model, tokenizer=general_tokenizer)
+        logger.info("✅ Fallback general QA model loaded successfully")
+    except Exception as fallback_error:
+        logger.error(f"❌ Complete failure to load general QA model: {fallback_error}")
+        general_qa_pipeline = None
 
-if not Path(LEGAL_QA_MODEL_DIR).exists():
-    raise FileNotFoundError(f"Legal QA model not found at {LEGAL_QA_MODEL_DIR}")
+# === Load Legal QA Model Using Smart Loader ===
+legal_qa_pipeline = None
+try:
+    legal_model, legal_tokenizer = load_model_for_qa(LEGAL_QA_MODEL_DIR, "deepset/roberta-base-squad2")
+    legal_qa_pipeline = pipeline("question-answering", model=legal_model, tokenizer=legal_tokenizer)
+    logger.info("✅ Legal QA model loaded successfully")
+except Exception as e:
+    logger.error(f"❌ Failed to load legal QA model: {e}")
+    # Fallback to direct HuggingFace loading
+    try:
+        logger.info("🔄 Attempting fallback to direct HuggingFace loading for legal QA...")
+        legal_model = AutoModelForQuestionAnswering.from_pretrained("deepset/roberta-base-squad2")
+        legal_tokenizer = AutoTokenizer.from_pretrained("deepset/roberta-base-squad2")
+        legal_qa_pipeline = pipeline("question-answering", model=legal_model, tokenizer=legal_tokenizer)
+        logger.info("✅ Fallback legal QA model loaded successfully")
+    except Exception as fallback_error:
+        logger.error(f"❌ Complete failure to load legal QA model: {fallback_error}")
+        legal_qa_pipeline = None
 
-# === Load General QA Model ===
-general_tokenizer = AutoTokenizer.from_pretrained(GENERAL_QA_MODEL_DIR, local_files_only=True)
-general_model = AutoModelForQuestionAnswering.from_pretrained(GENERAL_QA_MODEL_DIR, local_files_only=True)
-general_qa_pipeline = pipeline("question-answering", model=general_model, tokenizer=general_tokenizer)
-
-# === Load Legal QA Model ===
-legal_tokenizer = AutoTokenizer.from_pretrained(LEGAL_QA_MODEL_DIR, local_files_only=True)
-legal_model = AutoModelForQuestionAnswering.from_pretrained(LEGAL_QA_MODEL_DIR, local_files_only=True)
-legal_qa_pipeline = pipeline("question-answering", model=legal_model, tokenizer=legal_tokenizer)
-
+# Ensure at least one model loaded
+if not general_qa_pipeline and not legal_qa_pipeline:
+    raise RuntimeError("❌ No QA models could be loaded!")
 
 class QuestionAnsweringService:
     def __init__(self):
@@ -51,9 +75,12 @@ class QuestionAnsweringService:
             'trademark', 'intellectual property', 'confidentiality', 'non-disclosure'
         }
         
+        general_status = "loaded" if self.general_qa_pipeline else "failed"
+        legal_status = "loaded" if self.legal_qa_pipeline else "failed"
+        
         logger.info(f"QA service initialized with models:")
-        logger.info(f"  - General QA: {GENERAL_QA_MODEL_DIR}")
-        logger.info(f"  - Legal QA: {LEGAL_QA_MODEL_DIR}")
+        logger.info(f"  - General QA: {GENERAL_QA_MODEL_DIR} - {general_status}")
+        logger.info(f"  - Legal QA: {LEGAL_QA_MODEL_DIR} - {legal_status}")
     
     def _is_legal_question(self, question: str, context: str = "") -> bool:
         """Determine if a question is legal-related."""
@@ -64,11 +91,22 @@ class QuestionAnsweringService:
     def _select_qa_pipeline(self, question: str, context: str = ""):
         """Select appropriate QA pipeline based on question and context."""
         if self._is_legal_question(question, context):
-            logger.info("Using legal QA model")
-            return self.legal_qa_pipeline
+            if self.legal_qa_pipeline:
+                logger.info("Using legal QA model")
+                return self.legal_qa_pipeline
+            elif self.general_qa_pipeline:
+                logger.info("Legal QA model unavailable, using general QA model")
+                return self.general_qa_pipeline
         else:
-            logger.info("Using general QA model")
-            return self.general_qa_pipeline
+            if self.general_qa_pipeline:
+                logger.info("Using general QA model")
+                return self.general_qa_pipeline
+            elif self.legal_qa_pipeline:
+                logger.info("General QA model unavailable, using legal QA model")
+                return self.legal_qa_pipeline
+        
+        # This shouldn't happen given our initialization check, but just in case
+        raise RuntimeError("No QA models available")
     
     def add_document(self, doc_id: str, content: str):
         """Add a document to the knowledge base."""
@@ -241,10 +279,10 @@ class QuestionAnsweringService:
             logger.info(f"Context length: {len(context)} characters")
             
             # Select appropriate QA pipeline
-            if force_model == "legal":
+            if force_model == "legal" and self.legal_qa_pipeline:
                 qa_pipeline = self.legal_qa_pipeline
                 model_type = "legal"
-            elif force_model == "general":
+            elif force_model == "general" and self.general_qa_pipeline:
                 qa_pipeline = self.general_qa_pipeline
                 model_type = "general"
             else:
@@ -281,8 +319,14 @@ class QuestionAnsweringService:
                 
                 # Try the other model if one fails
                 try:
-                    alternative_pipeline = self.general_qa_pipeline if qa_pipeline == self.legal_qa_pipeline else self.legal_qa_pipeline
-                    alternative_model_type = "general" if model_type == "legal" else "legal"
+                    if qa_pipeline == self.legal_qa_pipeline and self.general_qa_pipeline:
+                        alternative_pipeline = self.general_qa_pipeline
+                        alternative_model_type = "general"
+                    elif qa_pipeline == self.general_qa_pipeline and self.legal_qa_pipeline:
+                        alternative_pipeline = self.legal_qa_pipeline
+                        alternative_model_type = "legal"
+                    else:
+                        raise Exception("No alternative model available")
                     
                     result = alternative_pipeline(
                         question=question,
@@ -390,6 +434,28 @@ class QuestionAnsweringService:
         except Exception as e:
             logger.error(f"Error finding best context: {e}")
             return "", None
+
+    def get_model_info(self) -> dict:
+        """Return information about the loaded QA models."""
+        try:
+            return {
+                "general_model": {
+                    "type": "microsoft/deberta-v3-large",
+                    "path": GENERAL_QA_MODEL_DIR,
+                    "loaded": self.general_qa_pipeline is not None
+                },
+                "legal_model": {
+                    "type": "deepset/roberta-base-squad2",
+                    "path": LEGAL_QA_MODEL_DIR,
+                    "loaded": self.legal_qa_pipeline is not None
+                },
+                "pipeline_task": "question-answering"
+            }
+        except Exception as e:
+            return {
+                "error": str(e),
+                "models_loaded": False
+            }
 
 
 # Initialize global service instance

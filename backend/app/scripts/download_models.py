@@ -120,6 +120,24 @@ except Exception as e:
     logger.warning("Torch import check failed (%s). If model loading fails, install torch.", e)
 
 
+
+def should_download_models():
+    """Check if we should download models (production) or use existing ones (local dev)."""
+    if os.getenv("ENV") == "production":
+        return True
+    
+    # Check if any core models are missing locally
+    core_models = [SUM_PATH, EMB_PATH, QA_PATH, LEGAL_QA_PATH]
+    missing_models = [path for path in core_models if not model_exists(path)]
+    
+    if missing_models:
+        logger.info("Missing models detected: %s", missing_models)
+        return True
+    
+    logger.info("All models present locally, skipping download")
+    return False
+
+
 # Helpers
 def ensure_directory(path: Path) -> None:
     """Create the directory if it doesn't exist."""
@@ -385,43 +403,7 @@ async def download_legal_analysis_model(force: bool = False) -> None:
     if last_err:
         raise last_err
 
-# async def download_contract_model(force: bool = False) -> None:
-#     logger.info("📦 Downloading contract analysis model: %s", CONTRACT_NAME)
-#     ensure_directory(CONTRACT_PATH)
 
-#     if not force and model_exists(CONTRACT_PATH):
-#         logger.info("⏭  Contract model already present at %s (skipping).", CONTRACT_PATH)
-#         return
-
-#     last_err: Optional[Exception] = None
-#     for attempt in range(1, MAX_ATTEMPTS + 1):
-#         try:
-#             logger.info("Attempt %s/%s: Loading tokenizer...", attempt, MAX_ATTEMPTS)
-#             tokenizer = AutoTokenizer.from_pretrained(CONTRACT_NAME)
-            
-#             logger.info("Attempt %s/%s: Loading model...", attempt, MAX_ATTEMPTS)
-#             model = AutoModelForSequenceClassification.from_pretrained(
-#                 CONTRACT_NAME, 
-#                 use_safetensors=True,
-#                 torch_dtype="auto"
-#             )
-            
-#             logger.info("Saving model to %s...", CONTRACT_PATH)
-#             tokenizer.save_pretrained(CONTRACT_PATH)
-#             model.save_pretrained(CONTRACT_PATH, safe_serialization=True)
-#             logger.info("✅ Contract analysis model saved to: %s", CONTRACT_PATH)
-#             return
-#         except Exception as e:
-#             last_err = e
-#             logger.warning("Attempt %s/%s to download contract model failed: %s",
-#                            attempt, MAX_ATTEMPTS, e)
-#             if attempt < MAX_ATTEMPTS:
-#                 logger.info("Retrying in %s seconds...", RETRY_DELAY_S)
-#                 await asyncio.sleep(RETRY_DELAY_S)
-
-#     logger.error("❌ Failed to download contract model after %s attempts.", MAX_ATTEMPTS)
-#     if last_err:
-#         raise last_err
 
 def print_model_info():
     """Print information about the selected models."""
@@ -454,11 +436,15 @@ def print_model_info():
     logger.info("   → Retry delay: %ss", RETRY_DELAY_S)
     logger.info("=" * 70)
 
-# ---------------------------------------------------------------------------
+
 # CLI entry
-# ---------------------------------------------------------------------------
+
 async def main(force: bool = False, check_only: bool = False, core_only: bool = False):
     print_model_info()
+
+    if not force and not should_download_models():
+        logger.info("🎯 Using existing local models")
+        return
     logger.info("\nStarting model checks/downloads...\n")
 
     if check_only:

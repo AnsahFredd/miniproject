@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     ENV: str
 
     # ── Security ───────────────────────────────────────────────────
-    ALLOWED_HOSTS: List[str] = ["*"]
+    ALLOWED_HOSTS: List[str]
+    
 
     # ── Hugging Face & AI ──────────────────────────────────────────
     HUGGINGFACE_API_KEY: str
@@ -118,7 +119,7 @@ class Settings(BaseSettings):
     def model_post_init(self, __context) -> None:
         if self.ENV == "production":
             self.CORS_ORIGINS = [
-                "https://lawlens-lake.vercel.app/",
+                 "lawlens-mu.vercel.app",
                 "https://www.lawlens.com",
             ]
         elif self.ENV == "staging":

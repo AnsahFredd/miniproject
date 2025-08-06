@@ -1,11 +1,11 @@
-# services/classification_service.py
 import os
+import logging
 from pathlib import Path
 import re
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
 import torch
 from typing import Dict, List, Optional
-import logging
+from app.utils.model_loader import load_model_for_classification
 
 logger = logging.getLogger(__name__)
 
@@ -16,30 +16,38 @@ CLASSIFICATION_MODEL_PATH_DIR = Path(__file__).resolve().parent.parent / "ai/mod
 CLASSIFICATION_MODEL_DIR = CLASSIFICATION_MODEL_DIR.as_posix()
 CLASSIFICATION_MODEL_PATH_DIR = CLASSIFICATION_MODEL_PATH_DIR.as_posix()
 
-# Check if models exist
-if not Path(CLASSIFICATION_MODEL_DIR).exists():
-    raise FileNotFoundError(f"Classification model not found at {CLASSIFICATION_MODEL_DIR}")
+# === Load Classification Model Using Smart Loader ===
+classification_pipeline = None
 
-if not Path(CLASSIFICATION_MODEL_PATH_DIR).exists():
-    logger.warning(f"Alternative classification model not found at {CLASSIFICATION_MODEL_PATH_DIR}")
-
-# === Load Classification Model ===
 try:
-    tokenizer = AutoTokenizer.from_pretrained(CLASSIFICATION_MODEL_DIR, local_files_only=True)
-    model = AutoModelForSequenceClassification.from_pretrained(CLASSIFICATION_MODEL_DIR, local_files_only=True)
+    # Try primary model with smart loader
+    model, tokenizer = load_model_for_classification(CLASSIFICATION_MODEL_DIR, "law-ai/InLegalBERT")
     classification_pipeline = pipeline("text-classification", model=model, tokenizer=tokenizer)
-    logger.info(f"Loaded classification model from {CLASSIFICATION_MODEL_DIR}")
+    logger.info(f"✅ Primary classification model loaded from {CLASSIFICATION_MODEL_DIR}")
+    
 except Exception as e:
-    logger.error(f"Failed to load primary classification model: {e}")
-    # Try alternative model
+    logger.error(f"❌ Failed to load primary classification model: {e}")
+    
+    # Try alternative model with smart loader
     try:
-        tokenizer = AutoTokenizer.from_pretrained(CLASSIFICATION_MODEL_PATH_DIR, local_files_only=True)
-        model = AutoModelForSequenceClassification.from_pretrained(CLASSIFICATION_MODEL_PATH_DIR, local_files_only=True)
+        model, tokenizer = load_model_for_classification(CLASSIFICATION_MODEL_PATH_DIR, "nlpaueb/legal-bert-base-uncased")
         classification_pipeline = pipeline("text-classification", model=model, tokenizer=tokenizer)
-        logger.info(f"Loaded alternative classification model from {CLASSIFICATION_MODEL_PATH_DIR}")
+        logger.info(f"✅ Alternative classification model loaded from {CLASSIFICATION_MODEL_PATH_DIR}")
+        
     except Exception as e2:
-        logger.error(f"Failed to load alternative classification model: {e2}")
-        classification_pipeline = None
+        logger.error(f"❌ Failed to load alternative classification model: {e2}")
+        
+        # Final fallback - try direct HF loading
+        try:
+            logger.info("🔄 Attempting fallback to direct HuggingFace loading...")
+            model = AutoModelForSequenceClassification.from_pretrained("law-ai/InLegalBERT")
+            tokenizer = AutoTokenizer.from_pretrained("law-ai/InLegalBERT")
+            classification_pipeline = pipeline("text-classification", model=model, tokenizer=tokenizer)
+            logger.info("✅ Fallback classification model loaded successfully")
+            
+        except Exception as fallback_error:
+            logger.error(f"❌ Complete failure to load classification model: {fallback_error}")
+            classification_pipeline = None
 
 
 class DocumentClassificationService:
@@ -75,7 +83,8 @@ class DocumentClassificationService:
             'compliance': ['compliance', 'regulation', 'audit', 'violation', 'penalty']
         }
         
-        logger.info("Classification service initialized")
+        model_status = "loaded" if self.classification_pipeline else "failed"
+        logger.info(f"Classification service initialized - model status: {model_status}")
     
     def classify_document(self, content: str, filename: str = "") -> Dict:
         """
@@ -275,6 +284,22 @@ class DocumentClassificationService:
             'extracted_entities': [],
             'classification_method': 'fallback'
         }
+
+    def get_model_info(self) -> dict:
+        """Return information about the loaded classification model."""
+        try:
+            return {
+                "model_type": "law-ai/InLegalBERT or nlpaueb/legal-bert-base-uncased",
+                "primary_path": CLASSIFICATION_MODEL_DIR,
+                "alternative_path": CLASSIFICATION_MODEL_PATH_DIR,
+                "model_loaded": self.classification_pipeline is not None,
+                "pipeline_task": "text-classification"
+            }
+        except Exception as e:
+            return {
+                "error": str(e),
+                "model_loaded": False
+            }
 
 
 # Initialize global service instance
