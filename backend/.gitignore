@@ -60,3 +60,4 @@ instance/
 docker-compose.override.yml
 
 
+/uploads
