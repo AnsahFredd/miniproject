@@ -40,6 +40,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+
+# Set Hugging Face cache dir
+ENV HF_HOME=/app/ai/models
+
+# Pre-download models to cache
+RUN python -c "from transformers import AutoTokenizer, AutoModel; \
+    AutoTokenizer.from_pretrained('law-ai/InLegalBERT'); \
+    AutoModel.from_pretrained('law-ai/InLegalBERT')"
+
+RUN python -c "from transformers import AutoTokenizer, AutoModelForQuestionAnswering; \
+    AutoTokenizer.from_pretrained('deepset/roberta-base-squad2'); \
+    AutoModelForQuestionAnswering.from_pretrained('deepset/roberta-base-squad2')"
+
+RUN python -c "from transformers import AutoTokenizer, AutoModelForQuestionAnswering; \
+    AutoTokenizer.from_pretrained('microsoft/deberta-v3-large'); \
+    AutoModelForQuestionAnswering.from_pretrained('microsoft/deberta-v3-large')"
+
+RUN python -c "from transformers import AutoTokenizer, AutoModelForSeq2SeqLM; \
+    AutoTokenizer.from_pretrained('facebook/bart-large-cnn'); \
+    AutoModelForSeq2SeqLM.from_pretrained('facebook/bart-large-cnn')"
+
+RUN python -c "from transformers import AutoTokenizer, AutoModel; \
+    AutoTokenizer.from_pretrained('nlpaueb/legal-bert-base-uncased'); \
+    AutoModel.from_pretrained('nlpaueb/legal-bert-base-uncased')"
+
+
 # Copy entire Python env including site-packages
 COPY --from=build /usr/local /usr/local
 
