@@ -4,11 +4,10 @@ services:
     env: python
     region: oregon
     buildCommand: pip install -r requirements.txt
-    startCommand: bash -c 'uvicorn app.main:app --host 0.0.0.0 --port $PORT'
+    startCommand: "bash -c 'uvicorn app.main:app --host 0.0.0.0 --port \$PORT'"
     plan: free
     autoDeploy: true
     envVars:
-      # PORT is automatically provided by Render - don't set it manually
       - key: SECRET_KEY
         sync: false
       - key: MONGODB_URI
