@@ -6,7 +6,7 @@ pydantic==2.6.3
 pydantic-settings==2.2.1
 
 # ML packages - Python 3.12 compatible versions with tokenizer fix
-torch==2.2.1
+torch==2.8.0
 transformers==4.38.2
 sentence-transformers==2.6.1
 scikit-learn==1.4.1.post1
