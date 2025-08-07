@@ -5,6 +5,8 @@ uvicorn[standard]==0.27.1
 pydantic==2.6.3
 pydantic-settings==2.2.1
 
+hf_transfer
+
 # ML packages - Python 3.12 compatible versions with tokenizer fix
 torch>=2.2.0
 transformers==4.38.2
