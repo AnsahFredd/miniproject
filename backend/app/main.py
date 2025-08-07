@@ -3,6 +3,9 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
+import os
+import uvicorn
+import logging
 
 from app.core.config import settings
 from app.middleware.logging import LoggingMiddleware
@@ -16,8 +19,6 @@ from app.routes.question import router as question_router
 from app.routes.document import router as document_router
 from app.core.rate_limiter import RateLimitMiddleware
 
-
-
 # Import routers
 from app.routes import (
     auth,
@@ -25,16 +26,13 @@ from app.routes import (
 )
 
 # Lifespan event for startup/shutdown
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await connect_to_mongo()
     yield
     await close_mongo_connection()
 
-
 # FastAPI App
-
 app = FastAPI(
     title="LawLens API",
     version="1.0.0",
@@ -44,12 +42,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-import logging
-
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)     
+)
 
 # Add CORS middleware with proper configuration
 app.add_middleware(
@@ -60,7 +57,6 @@ app.add_middleware(
     allow_headers=["*"],
     # max_age=600,  # Cache preflight requests for 10 minutes
 )
-
 
 app.add_middleware(
     RateLimitMiddleware, 
@@ -73,9 +69,8 @@ app.add_middleware(
         "/docs",                            # Exempt API docs
         "/redoc",                          # Exempt API docs
         "/openapi.json",                   # Exempt OpenAPI spec
-        ]
-    )
-
+    ]
+)
 
 # Health check endpoint
 @app.get("/health")
@@ -92,7 +87,7 @@ app.add_middleware(LoggingMiddleware)
 # Routers
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(document_router, prefix="/api/v1/documents", tags=["Documents"])
-app.include_router(question_router,prefix="/api/v1/questions", tags=["Questions"])
+app.include_router(question_router, prefix="/api/v1/questions", tags=["Questions"])
 app.include_router(document_analysis_router)
 app.include_router(summarize.router, prefix="/api/v1/summarize", tags=["Summarization"])
 # app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
@@ -101,3 +96,13 @@ app.include_router(embeddings_router, prefix="/api/v1/embedding", tags=["Embeddi
 app.include_router(expiry_extraction_router, prefix="/api/v1/expiry", tags=["Expiry Analysis"])
 app.include_router(user_router, prefix="/api/v1/user")
 
+# Production server startup
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=port,
+        reload=False,  # Set to False in production
+        access_log=True
+    )
