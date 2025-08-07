@@ -58,7 +58,6 @@ USER app
 RUN python -c "import nltk; nltk.download('punkt', download_dir='/app/nltk_data')" || echo "NLTK download will happen at runtime"
 
 # Port for Render
-EXPOSE $PORT
+EXPOSE 8000
 
 # Start server
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "$PORT"]
