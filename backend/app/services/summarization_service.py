@@ -105,3 +105,5 @@ def get_model_info() -> dict:
             "error": str(e),
             "model_loaded": False
         }
+    
+    

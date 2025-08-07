@@ -108,6 +108,8 @@ class UserProfileService:
 
             try:
                 logger.debug("AcceptedDocument model imported successfully")
+
+                # Count total documents upload
                 documents_uploaded = await AcceptedDocument.find(
                     AcceptedDocument.user_id == user.id
                 ).count()
@@ -125,27 +127,59 @@ class UserProfileService:
                     AcceptedDocument.user_id == user.id,
                     AcceptedDocument.questions_asked.exists(True)
                 ).count()
+
+                
+                # Method 2: Alternative - Count using contract_analyzed boolean flag
+                contracts_analyzed = await AcceptedDocument.find(
+                    AcceptedDocument.user_id == user.id,
+                    AcceptedDocument.contract_analyzed == True
+                ).count()
+                
+                # Method 3: Alternative - Count documents that have been processed and analyzed
+                contracts_analyzed = await AcceptedDocument.find(
+                    AcceptedDocument.user_id == user.id,
+                    AcceptedDocument.processed == True,
+                    AcceptedDocument.last_analyzed.exists(True)
+                ).count()
+                
+                logger.debug(f"Contracts analyzed: {contracts_analyzed}")
+
+                # Count questions answered (documents that have questions in questions_asked array)
+                questions_answered = await AcceptedDocument.find(
+                    AcceptedDocument.user_id == user.id,
+                    AcceptedDocument.questions_asked.size() > 0  # Documents with at least 1 question
+                ).count()
+            
+                # Alternative method - count total questions across all documents
+                pipeline = [
+                    {"$match": {"user_id": user.id, "questions_asked": {"$exists": True}}},
+                    {"$project": {"question_count": {"$size": "$questions_asked"}}},
+                    {"$group": {"_id": None, "total_questions": {"$sum": "$question_count"}}}
+                ]
+                result = await AcceptedDocument.aggregate(pipeline).to_list()
+                questions_answered = result[0]["total_questions"] if result else 0
+                
                 logger.debug(f"Questions answered: {questions_answered}")
             
             
             except ImportError as import_error:
                 logger.warning(f"Could not import AcceptedDocument model: {import_error}")
                 logger.info("Using default values for activity stats")
-                
+                    
             except AttributeError as attr_error:
                 logger.warning(f"Document model missing expected fields: {attr_error}")
                 logger.info("Using default values for activity stats")
-                
+                    
             except Exception as query_error:
-                logger.error(f"Error querying documents: {query_error}")
+                logger.error(f"Error querying documents: {query_error}")                
                 logger.info("Using default values for activity stats")
             
             
             response = ActivityStatsResponse(
-                documentsUploaded=documents_uploaded,
-                contractsAnalyzed=contracts_analyzed,
-                questionsAnswered=questions_answered
-            )
+                    documentsUploaded=documents_uploaded,
+                    contractsAnalyzed=contracts_analyzed,
+                    questionsAnswered=questions_answered
+                )
 
             logger.info(f"Activity stats response: uploaded={documents_uploaded}, analyzed={contracts_analyzed}, questions={questions_answered}")
             return response

@@ -29,18 +29,47 @@ class DocumentAnalysisService:
         if not content:
             raise ValueError("Document has no content")
 
-        analysis = {
-            'document_info': self._extract_document_info(doc),
-            'clause_overview': self._extract_clauses(content),
-            'summary': doc.summary or summarize_text(content),
-            'key_terms': self._extract_key_terms(content),
-            'financial_info': self._extract_financial_info(content),
-            'parties': self._extract_parties(content),
-            'dates_and_terms': self._extract_dates_and_terms(content),
-            'content': content  # Include full content in the response
-        }
+        doc.analysis_status = "processing"
+        await doc.save()
 
-        return analysis
+        try:
+
+            analysis = {
+                'document_info': self._extract_document_info(doc),
+                'clause_overview': self._extract_clauses(content),
+                'summary': doc.summary or summarize_text(content),
+                'key_terms': self._extract_key_terms(content),
+                'financial_info': self._extract_financial_info(content),
+                'parties': self._extract_parties(content),
+                'dates_and_terms': self._extract_dates_and_terms(content),
+                'content': content  # Include full content in the response
+            }
+
+            # UPDATE: Mark analysis as completed and update counters
+            doc.analysis_status = "completed"
+            doc.contract_analyzed = True
+            doc.analysis_completed_at = datetime.utcnow()
+            doc.analysis_results = analysis
+            doc.last_analyzed = datetime.utcnow()
+
+            # Determine document type based on content
+            if self._contains_keywords(content, ['lease', 'rental', 'tenant']):
+                doc.document_type = "lease"
+            elif self._contains_keywords(content, ['contract', 'agreement']):
+                doc.document_type = "contract"
+            else:
+                doc.document_type = "document"
+            
+            await doc.save()
+
+            return analysis
+        except Exception as e:
+            # ✅ UPDATE: Mark analysis as failed
+            doc.analysis_status = "failed"
+            await doc.save()
+            raise e
+        
+        
 
     def _extract_document_info(self, doc: AcceptedDocument) -> Dict[str, str]:
         return {

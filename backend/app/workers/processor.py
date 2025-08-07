@@ -1,7 +1,7 @@
 # Background doc parsing using Celery
 
 import os
-from app.workers.tasks import celery_app
+from LawLens.backend.app.workers.celery_worker import celery_app
 from app.utils.file_utils import extract_text_from_file
 from app.services.embedding_service import generate_embedding
 from app.database.mongo import init_beanie

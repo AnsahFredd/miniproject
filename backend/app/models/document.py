@@ -1,6 +1,6 @@
 from beanie import Document
 from pydantic import Field
-from typing import Optional, List
+from typing import Any, Dict, Optional, List
 from datetime import datetime,timezone
 from beanie import PydanticObjectId
 from app.schemas.ai_extraction import ExpiryExtractionResponse
@@ -26,8 +26,16 @@ class AcceptedDocument(Document):
     upload_date: datetime = Field(default_factory=datetime.utcnow)
     expiry_analysis: Optional[ExpiryExtractionResponse] = None
     analyzed_by: Optional[str] = None
-    last_analyzed: Optional[datetime] = None  # Also fixed the type annotation here
+    last_analyzed: Optional[datetime] = None  
 
+    analysis_status: Optional[str] = Field(default="pending")  # pending, processing, completed, failed
+    questions_asked: Optional[List[Dict[str, Any]]] = Field(default_factory=list)  # Store Q&A history
+    contract_analyzed: bool = False  # Simple boolean flag
+    analysis_completed_at: Optional[datetime] = None  # When analysis was completed
+
+    # Additional fields for better tracking
+    document_type: Optional[str] = None  # contract, lease, agreement, etc.
+    analysis_results: Optional[Dict[str, Any]] = Field(default_factory=dict)  # Store analysis results
 
 
     class Settings:

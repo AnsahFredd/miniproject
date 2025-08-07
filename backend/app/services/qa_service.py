@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import logging
 from pathlib import Path
@@ -156,6 +157,7 @@ class QuestionAnsweringService:
                         "source_document": None,
                         "model_used": None
                     }
+
                 source = document_id
             else:
                 # Search all user's documents for best match
@@ -175,6 +177,16 @@ class QuestionAnsweringService:
             
             # Get answer from the model
             result = qa_pipeline(question=question, context=context)
+
+             # NEW: Track the question and answer in the database
+            if source:  # If we have a specific document
+                await self._track_question_answer(
+                    document_id=source,
+                    question=question,
+                    answer=result["answer"],
+                    confidence_score=result["score"],
+                    model_used=model_type
+                )
             
             return {
                 "answer": result["answer"],
@@ -191,6 +203,39 @@ class QuestionAnsweringService:
                 "source_document": None,
                 "model_used": None
             }
+    
+
+    async def _track_question_answer(self, document_id: str, question: str, answer: str, confidence_score: float, model_used: str):
+        """
+        Track question and answer in the document record
+        """
+        try:
+            from bson import ObjectId
+            doc = await AcceptedDocument.find_one({"_id": ObjectId(document_id)})
+            if doc:
+                # Create Q&A record
+                qa_record = {
+                    "question": question,
+                    "answer": answer,
+                    "confidence_score": confidence_score,
+                    "model_used": model_used,
+                    "asked_at": datetime.utcnow(),
+                    "id": str(ObjectId())  # Unique ID for each Q&A
+                }
+                
+                # Add to questions_asked array
+                if doc.questions_asked is None:
+                    doc.questions_asked = []
+                
+                doc.questions_asked.append(qa_record)
+                await doc.save()
+                
+                logger.info(f"Tracked Q&A for document {document_id}: {question[:50]}...")
+                
+        except Exception as e:
+            logger.error(f"Failed to track question/answer: {e}")
+
+
     
     def _preprocess_context(self, search_results: List[Dict]) -> str:
         """
