@@ -139,7 +139,7 @@ const LegalDocumentSearch = () => {
     <div className="max-w-4xl mx-auto p-6 bg-white">
       <div className="mb-8">
         <div className="relative mb-4">
-          <Search className="absolute left-1 top-1/2 transform -translate-y-1/2 text-[var(--color-secondary)] w-5 h-5" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--color-secondary)] w-5 h-5" />
           <input
             type="text"
             placeholder="Search legal documents..."
