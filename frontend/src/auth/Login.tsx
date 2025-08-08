@@ -129,7 +129,7 @@ const Login: React.FC = () => {
         message="Signing you in... Verifying your credentials and preparing your dashboard!"
       />
 
-      <div className="flex flex-col items-center justify-center mt-12 gap-4">
+      <div className="flex flex-col items-center justify-center mt-12 gap-4 px-6">
         <h1 className="text-4xl font-semibold text-[var(--color-primary)]">Welcome back</h1>
         {/* Confirmation success message */}
         {isConfirmed && status === "success" && (
@@ -179,7 +179,7 @@ const Login: React.FC = () => {
 
         <p className="text-[var(--color-secondary)] mt-8 text-center">
           Don&apos;t have an account?{" "}
-          <Link to="/signup" className="link-accent transition-colors">
+          <Link to="/signup" className="link-accent transition-colors mb-3">
             Sign up
           </Link>
         </p>

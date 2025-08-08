@@ -52,7 +52,7 @@ const Signup = () => {
         message="Creating your account... Please wait while we set up everything for you!"
       />
 
-      <form onSubmit={handleSignup} className="flex flex-col gap-6 items-center mt-12">
+      <form onSubmit={handleSignup} className="flex flex-col gap-6 items-center mt-12 px-6">
         <h1 className="text-3xl font-bold text-[var(--color-primary)]">Sign up to LawLens</h1>
         {error && (
           <div className="text-[var(--color-primary)] border border-gray-200 p-2 rounded bg-[var(--bg-soft)] max-w-md w-full text-center" role="alert" aria-live="assertive">
@@ -68,7 +68,7 @@ const Signup = () => {
           disabled={loading || !form.email || !form.password || !form.name}
           otherStyles="btn btn-primary w-full mx-11 lg:mx-0 max-w-md"
         />
-        <p className="text-[var(--color-secondary)] mt-4 text-center">
+        <p className="text-[var(--color-secondary)] mt-4 text-center mb-4">
           Already have an account?{" "}
           <Link to="/login" className="link-accent transition-colors">
             Log in
