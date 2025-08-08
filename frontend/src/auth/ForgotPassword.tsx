@@ -42,7 +42,7 @@ const handlePasswordReset = async () => {
 
 return (
   <>
-    <div className="flex flex-col items-center justify-center mt-12 gap-4">
+    <div className="flex flex-col items-center justify-center mt-24 gap-4">
       <h1 className="text-4xl font-semibold text-[var(--color-primary)]">
         Forgot password?
       </h1>

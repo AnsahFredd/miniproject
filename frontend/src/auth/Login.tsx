@@ -163,7 +163,7 @@ const Login: React.FC = () => {
               label={isLoading ? "Signing in..." : "Login"}
               isLoading={isLoading}
               disabled={!email || !password || isLoading}
-              otherStyles="btn btn-primary mx-11 lg:mx-0"
+              otherStyles="btn btn-primary w-[300px] mx-11 lg:mx-0"
             />
           }
         />
