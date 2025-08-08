@@ -7,6 +7,7 @@ import ProcessingQueue from "../components/ProcessingQueue";
 import UsageStatistics from "../components/UsageStatistics";
 import axios from "axios";
 import AIRecommendations from "../components/Recommendation";
+import homeBackground from "../assets/images/homebackground.jpg"
 
 // Type definitions
 interface Contract {
@@ -35,7 +36,6 @@ const HomePage = () => {
     error: null
   });
 
-  // Fetch expiring contracts data
   useEffect(() => {
     const fetchExpiringContracts = async () => {
       if (!token) return;
@@ -49,7 +49,7 @@ const HomePage = () => {
             'Content-Type': 'application/json'
           },
           params: {
-            days_ahead: 30 // Get contracts expiring in next 30 days
+            days_ahead: 30
           }
         });
 
@@ -59,7 +59,7 @@ const HomePage = () => {
           loading: false,
           error: null
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching expiring contracts:', error);
         setContractsData(prev => ({
           ...prev,
@@ -71,47 +71,157 @@ const HomePage = () => {
     fetchExpiringContracts();
   }, [token]);
 
-
   return (
-    <div className="container mx-auto w-full min-h-screen px-4 pt-10 pb-6 text-[#121417] bg-[#FAFAFA]">
-      {/* Heading */}
-      <div className="flex flex-col gap-2 mb-6">
-        <h1 className="text-3xl md:text-4xl font-bold">Dashboard</h1>
-        <p className="text-[#61758A] text-base md:text-lg">
-          Welcome back,{" "}
-          <span className="font-medium">{user?.full_name || "User"}</span>! Here’s a quick overview of your recent activity and tools you might need.
-        </p>
+    <div className="w-full min-h-screen bg-[var(--bg-soft)]">
+      {/* Hero Section */}
+      <div className="w-full bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 items-center min-h-[85vh] py-16">
+            
+            {/* Left Column - Content (60%) */}
+            <div className="order-2 lg:order-1 lg:col-span-3">
+              <div className="max-w-xl">
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[var(--color-primary)] mb-6 leading-tight">
+                  Welcome to <span className="text-[var(--color-accent)]">LawLens</span>
+                </h1>
+                
+                <div className="mb-8">
+                  <p className="text-lg text-[var(--color-secondary)] mb-4">
+                    Your intelligent legal document management and analysis platform. 
+                    Streamline your legal workflows with AI-powered insights and comprehensive document processing.
+                  </p>
+                  <p className="text-base text-[var(--color-secondary)]">
+                    Welcome back, <span className="font-medium text-[var(--color-primary)]">{user?.full_name || "User"}</span>! 
+                    Ready to manage your legal documents efficiently.
+                  </p>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Button
+                    label="Upload Document"
+                    onClick={() => navigate("/document")}
+                    otherStyles="btn btn-primary"
+                  />
+                  <Button
+                    label="Search & QA"
+                    onClick={() => navigate("/search")}
+                    otherStyles="btn btn-outline-accent"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Image (40%) */}
+            <div className="order-1 lg:order-2 lg:col-span-2">
+              <div className="relative">
+                <div className="rounded-2xl overflow-hidden shadow-2xl bg-gray-100">
+                  <img
+                    src={homeBackground || "/placeholder.svg"}
+                    alt="Legal document management"
+                    className="w-full h-[300px] lg:h-[350px] object-cover"
+                  />
+                </div>
+                
+                <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-yellow-400 rounded-full opacity-20"></div>
+                <div className="absolute -top-4 -right-4 w-16 h-16 bg-blue-500 rounded-full opacity-20"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      
-      <ProcessingQueue />
 
-      {/* AI Recommendations Component */}
-      {token && <AIRecommendations token={token} />}  
-      
+      {/* Scrollable Content Section */}
+      <div className="relative w-full bg-white shadow-lg">
+        <div className="max-w-6xl mx-auto px-4 py-16">
+          
+          {/* Processing Queue Section with Side Content */}
+          <div className="mb-12">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+              
+              {/* Left Content - Processing Queue */}
+              <div className="lg:col-span-2">
+                <ProcessingQueue />
+              </div>
+              
+              {/* Right Content - Information Panel */}
+              <div className="lg:col-span-1">
+                <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                  <h3 className="text-xl font-semibold text-[var(--color-primary)] mb-4">
+                    Document Processing
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-medium text-[var(--color-primary)] mb-2">Quick Stats</h4>
+                      <div className="space-y-2 text-sm text-[var(--color-secondary)]">
+                        <div className="flex justify-between">
+                          <span>Total Documents:</span>
+                          <span className="font-medium">12</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Completed:</span>
+                          <span className="font-medium">10</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Processing:</span>
+                          <span className="font-medium">2</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="border-t pt-4">
+                      <h4 className="font-medium text-[var(--color-primary)] mb-2">Processing Tips</h4>
+                      <ul className="text-sm text-[var(--color-secondary)] space-y-1">
+                        <li>• Documents typically process within 2-5 minutes</li>
+                        <li>• PDF files are processed fastest</li>
+                        <li>• Large files may take longer to analyze</li>
+                        <li>• You'll be notified when processing completes</li>
+                      </ul>
+                    </div>
+                    
+                    <div className="border-t pt-4">
+                      <h4 className="font-medium text-[var(--color-primary)] mb-2">Need Help?</h4>
+                      <p className="text-sm text-[var(--color-secondary)] mb-3">
+                        Having issues with document processing or need assistance with your legal documents?
+                      </p>
+                      <button className="w-full btn btn-secondary">
+                        Contact Support
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-      {/* Usage Statistics Component */}
-      {token && (
-        <div className="mb-8">
-          <UsageStatistics token={token} />
-        </div>
-      )}
-      <div className="flex flex-col lg:flex-row items-center mx-12 space-y-6 lg:space-y-0 lg:mx-0">
-      <div className="w-full sm:w-[250px] mx-11">
-          <Button
-            label="Upload New Document"
-            onClick={() => navigate("/document")}
-            otherStyles="w-full bg-[#0D80F2] text-white py-2 px-4 rounded-lg hover:bg-[#006ad4] transition"
-          />
-        </div>
+          {/* AI Recommendations Component */}
+          {token && (
+            <div className="mb-12">
+              <AIRecommendations token={token} />
+            </div>
+          )}
 
-        <div className="w-full sm:w-[250px]">
-          <Button
-            label="Go to Search & QA"
-            onClick={() => navigate("/search")}
-            otherStyles="w-full bg-[#F0F2F5] text-[#121417] py-2 px-4 rounded-lg hover:bg-[#e4e7eb] transition"
-          />
+          {/* Usage Statistics Component */}
+          {token && (
+            <div className="mb-12">
+              <UsageStatistics token={token} />
+            </div>
+          )}
+
+          {/* Additional Content Sections */}
+          <div className="text-center py-16">
+            <h2 className="text-3xl font-bold text-[var(--color-primary)] mb-4">
+              Your Legal Document Management Hub
+            </h2>
+            <p className="text-lg text-[var(--color-secondary)] max-w-3xl mx-auto leading-relaxed">
+              Track your document processing, view analytics, and get AI-powered recommendations 
+              to optimize your legal workflows. Our comprehensive platform helps you stay organized 
+              and make informed decisions.
+            </p>
+          </div>
         </div>
-        </div>
+      </div>
     </div>
   );
 };

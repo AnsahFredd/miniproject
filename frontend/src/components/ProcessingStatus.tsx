@@ -1,5 +1,5 @@
 import React from "react";
-import { Loader2, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Clock } from 'lucide-react';
 
 interface ProcessingStatusProps {
   status: "pending" | "processing" | "completed" | "failed" | "duplicated";
@@ -12,36 +12,36 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ status, error }) =>
       case "pending":
         return (
           <>
-            <Clock className="w-5 h-5 text-yellow-500 animate-pulse" />
-            <span className="text-yellow-600 font-medium">Pending...</span>
+            <Clock className="w-5 h-5 text-[var(--color-secondary)] animate-pulse" />
+            <span className="text-[var(--color-secondary)] font-medium">Pending...</span>
           </>
         );
       case "processing":
         return (
           <>
-            <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
-            <span className="text-blue-600 font-medium">Processing...</span>
+            <Loader2 className="w-5 h-5 text-[var(--color-primary)] animate-spin" />
+            <span className="text-[var(--color-primary)] font-medium">Processing...</span>
           </>
         );
       case "completed":
         return (
           <>
-            <CheckCircle className="w-5 h-5 text-green-500" />
-            <span className="text-green-600 font-medium">Completed</span>
+            <CheckCircle className="w-5 h-5 text-[var(--color-accent)]" />
+            <span className="text-[var(--color-accent)] font-medium">Completed</span>
           </>
         );
       case "duplicated":
         return (
           <>
-            <XCircle className="w-5 h-5 text-orange-500" />
-            <span className="text-orange-600 font-medium">Duplicate Document</span>
+            <XCircle className="w-5 h-5 text-[var(--color-secondary)]" />
+            <span className="text-[var(--color-secondary)] font-medium">Duplicate Document</span>
           </>
         );
       case "failed":
         return (
           <>
-            <XCircle className="w-5 h-5 text-red-500" />
-            <span className="text-red-600 font-medium">
+            <XCircle className="w-5 h-5 text-[var(--color-primary)]" />
+            <span className="text-[var(--color-primary)] font-medium">
               Failed: {error || "Unknown error"}
             </span>
           </>
@@ -52,7 +52,7 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ status, error }) =>
   };
 
   return (
-    <div className="flex items-center gap-2 p-2 bg-gray-100 rounded-md shadow-sm w-fit mx-auto mt-4">
+    <div className="flex items-center gap-2 p-2 bg-[var(--bg-soft)] rounded-md shadow-sm w-fit mx-auto mt-4" role="status" aria-live="polite">
       {renderStatus()}
     </div>
   );

@@ -149,28 +149,34 @@ const UsageStatistics: React.FC<UsageStatisticsProps> = ({ token }) => {
   if (!token) return null;
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mt-11 mx-11">
+    <div className="card rounded-lg border border-gray-200 shadow-lg p-6 mt-11 mx-11 bg-white">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-lg font-semibold text-gray-900">Usage</h2>
+        <h2 className="text-lg font-semibold text-[var(--color-primary)]">Usage</h2>
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center h-48">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-3 text-gray-600">Loading usage data...</span>
+        <div className="flex items-center justify-center h-48" role="status" aria-live="polite">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-accent)]"></div>
+          <span className="ml-3 text-[var(--color-secondary)]">Loading usage data...</span>
         </div>
       ) : error ? (
-        <div className="text-center py-8 text-red-600 text-sm">{error}</div>
+        <div className="text-center py-8 text-[var(--color-primary)] text-sm bg-[var(--bg-soft)] rounded-md border border-gray-200" role="alert" aria-live="assertive">
+          {error}
+        </div>
       ) : (
         <>
           <div className="mb-8">
-            <h3 className="text-sm font-medium text-gray-600 mb-3">Document Processing</h3>
+            <h3 className="text-sm font-medium text-[var(--color-secondary)] mb-3">Document Processing</h3>
             <div className="flex items-baseline gap-3">
-              <span className="text-4xl font-bold text-gray-900">{totalProcessed}</span>
+              <span className="text-4xl font-bold text-[var(--color-accent)]">{totalProcessed}</span>
               <div className="flex items-baseline gap-2">
-                <span className="text-sm text-gray-500">Last 30 Days</span>
+                <span className="text-sm text-[var(--color-secondary)]">Last 30 Days</span>
                 {percentageChange !== 0 && (
-                  <span className={`text-sm font-semibold ${percentageChange > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                  <span className={`text-sm font-semibold ${
+                    percentageChange > 0 
+                      ? 'text-green-600' 
+                      : 'text-red-600'
+                  }`}>
                     {percentageChange > 0 ? '+' : ''}{percentageChange}%
                   </span>
                 )}
@@ -178,19 +184,41 @@ const UsageStatistics: React.FC<UsageStatisticsProps> = ({ token }) => {
             </div>
           </div>
 
-          <div className="h-64">
+          <div className="h-64 bg-white rounded-md p-4 border border-gray-200">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={usageData} margin={{ top: 10, right: 20, bottom: 30, left: 0 }}>
-                <CartesianGrid strokeDasharray="2 2" />
-                <XAxis dataKey="dayName" />
-                <YAxis allowDecimals={false} />
-                <Tooltip formatter={(value: number) => `${value} document${value !== 1 ? 's' : ''}`} />
-                <Bar dataKey="count" fill="#8884d8" radius={[4, 4, 0, 0]} />
+                <CartesianGrid stroke="#E5E7EB" />
+                <XAxis 
+                  dataKey="dayName" 
+                  tick={{ fill: '#64748B', fontSize: 12 }}
+                  axisLine={{ stroke: '#E5E7EB' }}
+                />
+                <YAxis 
+                  allowDecimals={false} 
+                  tick={{ fill: '#64748B', fontSize: 12 }}
+                  axisLine={{ stroke: '#E5E7EB' }}
+                />
+                <Tooltip 
+                  formatter={(value: number) => [`${value} document${value !== 1 ? 's' : ''}`, 'Documents']}
+                  contentStyle={{
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #E5E7EB',
+                    borderRadius: '6px',
+                    color: '#0F172A'
+                  }}
+                />
+                <Bar 
+                  dataKey="count" 
+                  fill="#14B8A6" 
+                  radius={[4, 4, 0, 0]}
+                  stroke="#0FA596"
+                  strokeWidth={1}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          <p className="text-xs text-gray-400 text-center mt-4">
+          <p className="text-xs text-[var(--color-secondary)] text-center mt-4">
             Daily document processing over the last 7 days
           </p>
         </>

@@ -160,19 +160,22 @@ const UploadFiles: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white">
-      <h1 className="text-2xl font-semibold text-gray-900 mb-8">Upload Legal Document</h1>
+      <h1 className="text-2xl font-semibold text-[var(--color-primary)] mb-8">Upload Legal Document</h1>
 
       {/* Dropzone */}
       <div
         {...getRootProps()}
         className={`cursor-pointer border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
-          isDragActive ? 'border-blue-400 bg-blue-50' : 'border-gray-300 bg-gray-50 hover:border-gray-400'
+          isDragActive ? 'border-[var(--color-accent)] bg-[color:rgb(20_184_166_/_8%)]' : 'border-gray-300 bg-[var(--bg-soft)] hover:border-[var(--color-secondary)]/40'
         }`}
+        role="button"
+        aria-label="Upload a document. Drag and drop or press Enter to browse files."
+        tabIndex={0}
       >
-        <input {...getInputProps()} />
-        <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-        <p className="text-lg text-gray-600 mb-2">Drag & drop your document here</p>
-        <p className="text-sm text-gray-500">
+        <input {...getInputProps()} aria-label="Document file input" />
+        <Upload className="mx-auto h-12 w-12 text-[var(--color-secondary)] mb-4" />
+        <p className="text-lg text-[var(--color-secondary)] mb-2">Drag & drop your document here</p>
+        <p className="text-sm text-[var(--color-secondary)]/80">
           Or click to browse. PDF, DOCX, TXT. Max: 50MB.
         </p>
       </div>
@@ -180,24 +183,22 @@ const UploadFiles: React.FC = () => {
       {/* Selected File */}
       {uploadedFile && (
         <div className="mt-8">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Selected File</h2>
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md border">
+          <h2 className="text-lg font-medium text-[var(--color-primary)] mb-4">Selected File</h2>
+          <div className="flex items-center justify-between p-3 bg-[var(--bg-soft)] rounded-md border border-gray-200">
             <div className="flex items-center">
-              <File className="h-5 w-5 text-gray-400 mr-3" />
+              <File className="h-5 w-5 text-[var(--color-secondary)] mr-3" />
               <div>
-                <p className="text-sm font-medium text-gray-900">{uploadedFile.name}</p>
-                <p className="text-xs text-gray-500">{formatFileSize(uploadedFile.size)}</p>
+                <p className="text-sm font-medium text-[var(--color-primary)]">{uploadedFile.name}</p>
+                <p className="text-xs text-[var(--color-secondary)]">{formatFileSize(uploadedFile.size)}</p>
               </div>
             </div>
             <button
               onClick={() => setUploadedFile(null)}
-              className="text-red-500 hover:text-red-700 text-sm font-medium"
+              className="text-[var(--color-primary)] hover:opacity-80 text-sm font-medium"
             >
               Remove
             </button>
           </div>
-
-         
 
           {/* Upload Button */}
           <div className="mt-6 flex justify-center">
@@ -205,7 +206,7 @@ const UploadFiles: React.FC = () => {
               label="Upload"
               isLoading={isUploading}
               onClick={handleUpload}
-              otherStyles="bg-black text-white"
+              otherStyles="btn btn-primary"
               animationStyles="hover:scale-105 active:scale-95 transition-transform duration-200 ease-in-out"
             />
           </div>

@@ -6,9 +6,9 @@ interface InstructionsPanelProps {
 
 const InstructionsPanel: React.FC<InstructionsPanelProps> = ({ documentId }) => {
   return (
-    <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-      <h4 className="font-medium text-blue-900 mb-2">How it works:</h4>
-      <ul className="text-sm text-blue-800 space-y-1">
+    <div className="mt-6 p-4 rounded-lg border border-[color:rgb(20_184_166_/_26%)] bg-[color:rgb(20_184_166_/_8%)]">
+      <h4 className="font-medium text-[var(--color-accent)] mb-2">How it works:</h4>
+      <ul className="text-sm text-[var(--color-secondary)] space-y-1">
         <li>
           • {documentId 
             ? "Document automatically loaded and analyzed from backend" 

@@ -7,7 +7,7 @@ import { Link, Navigate } from "react-router-dom";
 
 import { motion, AnimatePresence } from "framer-motion";
 
-import { Search, HelpCircle, File, X, Menu } from "lucide-react";
+import { Search, HelpCircle, File, X, Menu } from 'lucide-react';
 import Button from "../components/ui/Button";
 import { useAuth } from "../auth/AuthContext";
 
@@ -44,60 +44,60 @@ const LandingPage = () => {
 
       {/* Features Section */}
       <section className="p-6 md:px-12 space-y-6 max-w-7xl mx-auto">
-        <h2 className="text-3xl font-bold text-[#121417] text-center lg:text-left">
+        <h2 className="text-3xl font-bold text-[var(--color-primary)] text-center lg:text-left">
           Key Features
         </h2>
-        <p className="text-[#121417] max-w-3xl mx-auto md:mx-0 text-center lg:text-left">
+        <p className="text-[var(--color-secondary)] max-w-3xl mx-auto md:mx-0 text-center lg:text-left">
           Explore the core functionalities that make LawLens an indispensable
           tool for legal professionals.
         </p>
 
         <div className="flex flex-col lg:flex-row md:gap-8 gap-6 justify-center">
           {/* Card 1 */}
-          <div className="border border-gray-300 rounded-lg p-6 flex flex-col items-center md:items-start text-center lg:text-left max-w-sm md:max-w-[320px] mx-auto">
-            <File color="#4b4646cb" size={36} className="mb-4" />
-            <h3 className="font-semibold text-xl mb-2 text-[#121417]">
+          <div className="card p-6 flex flex-col items-center md:items-start text-center lg:text-left max-w-sm md:max-w-[320px] mx-auto">
+            <File color="currentColor" className="text-[var(--color-primary)] mb-4" size={36} />
+            <h3 className="font-semibold text-xl mb-2 text-[var(--color-primary)]">
               Document Parsing
             </h3>
-            <p>
+            <p className="text-[var(--color-secondary)]">
               Accurately extract key information from various legal document
               formats.
             </p>
           </div>
 
           {/* Card 2 */}
-          <div className="border border-gray-300 rounded-lg p-6 flex flex-col items-center md:items-start text-center lg:text-left max-w-sm md:max-w-[320px] mx-auto">
-            <Search color="#4b4646cb" size={36} className="mb-4" />
-            <h3 className="font-semibold text-xl mb-2 text-[#121417]">
+          <div className="card p-6 flex flex-col items-center md:items-start text-center lg:text-left max-w-sm md:max-w-[320px] mx-auto">
+            <Search color="currentColor" className="text-[var(--color-primary)] mb-4" size={36} />
+            <h3 className="font-semibold text-xl mb-2 text-[var(--color-primary)]">
               Clause Identification
             </h3>
-            <p>
+            <p className="text-[var(--color-secondary)]">
               Quickly identify and analyze specific clauses within legal
               documents.
             </p>
           </div>
 
           {/* Card 3 */}
-          <div className="border border-gray-300 rounded-lg p-6 flex flex-col items-center md:items-start text-center lg:text-left max-w-sm md:max-w-[320px] mx-auto">
-            <div className="w-10 h-10 flex items-center justify-center border text-[#4b4646cb] rounded text-lg font-bold mb-4">
+          <div className="card p-6 flex flex-col items-center md:items-start text-center lg:text-left max-w-sm md:max-w-[320px] mx-auto">
+            <div className="w-10 h-10 flex items-center justify-center border text-[var(--color-primary)] rounded text-lg font-bold mb-4">
               B
             </div>
-            <h3 className="font-semibold text-xl mb-2 text-[#121417]">
+            <h3 className="font-semibold text-xl mb-2 text-[var(--color-primary)]">
               Summarization
             </h3>
-            <p>
+            <p className="text-[var(--color-secondary)]">
               Generate concise summaries of lengthy legal documents, saving time
               and effort.
             </p>
           </div>
 
           {/* Card 4 */}
-          <div className="border border-gray-300 rounded-lg p-6 flex flex-col items-center md:items-start text-center lg:text-left max-w-sm md:max-w-[320px] mx-auto">
-            <HelpCircle color="#4b4646cb" size={36} className="mb-4" />
-            <h3 className="font-semibold text-xl mb-2 text-[#121417]">
+          <div className="card p-6 flex flex-col items-center md:items-start text-center lg:text-left max-w-sm md:max-w-[320px] mx-auto">
+            <HelpCircle color="currentColor" className="text-[var(--color-primary)] mb-4" size={36} />
+            <h3 className="font-semibold text-xl mb-2 text-[var(--color-primary)]">
               Question-Answering
             </h3>
-            <p>
+            <p className="text-[var(--color-secondary)]">
               Get instant answers to your legal questions by querying documents
               directly.
             </p>
@@ -112,7 +112,7 @@ const LandingPage = () => {
             <Button
               label="Get Started"
               isLoading={false}
-              otherStyles="bg-black text-white hover:bg-black/85 w-full"
+              otherStyles="btn btn-primary w-full"
             />
           </Link>
         </div>
@@ -120,59 +120,59 @@ const LandingPage = () => {
 
       {/* Solutions Section */}
       <section className="p-6 mt-11 space-y-6 max-w-7xl mx-auto">
-        <h2 className="text-3xl font-bold text-[#121417] text-center lg:text-left">
+        <h2 className="text-3xl font-bold text-[var(--color-primary)] text-center lg:text-left">
           Solutions for Every Legal Professional
         </h2>
 
-        <p className="text-[#121417] text-center lg:text-left max-w-3xl mx-auto md:mx-0">
+        <p className="text-[var(--color-secondary)] text-center lg:text-left max-w-3xl mx-auto md:mx-0">
           LawLens caters to the unique needs of different legal roles, providing
           tailored solutions for enhanced productivity and insights.
         </p>
 
         <div className="flex flex-col lg:flex-row md:space-x-8 space-y-8 md:space-y-0 mt-6 justify-center">
           {/* Card 1 */}
-          <div className="flex flex-col items-center md:items-start text-center lg:text-left max-w-xs md:max-w-[280px] mx-auto">
+          <div className="flex flex-col items-center md:items-start text-center lg:text-left max-w-xs md:max-w-[280px] mx-auto card p-4">
             <img
-              src={landingimage1}
+              src={landingimage1 || "/placeholder.svg"}
               alt="For Law Firms"
               className="mb-4 w-full h-auto rounded-md shadow-sm"
             />
-            <h3 className="font-semibold text-xl mb-2 text-[#121417]">
+            <h3 className="font-semibold text-xl mb-2 text-[var(--color-primary)]">
               For Law Firms
             </h3>
-            <p className="text-gray-700">
+            <p className="text-[var(--color-secondary)]">
               Streamline case preparation, contract review, and legal research
               with AI-powered tools.
             </p>
           </div>
 
           {/* Card 2 */}
-          <div className="flex flex-col items-center md:items-start text-center lg:text-left max-w-xs md:max-w-[280px] mx-auto">
+          <div className="flex flex-col items-center md:items-start text-center lg:text-left max-w-xs md:max-w-[280px] mx-auto card p-4">
             <img
-              src={landingimage2}
+              src={landingimage2 || "/placeholder.svg"}
               alt="For Compliance Officers"
               className="mb-4 w-full h-auto rounded-md shadow-sm"
             />
-            <h3 className="font-semibold text-xl mb-2 text-[#121417]">
+            <h3 className="font-semibold text-xl mb-2 text-[var(--color-primary)]">
               For Compliance Officers
             </h3>
-            <p className="text-gray-700">
+            <p className="text-[var(--color-secondary)]">
               Ensure regulatory compliance, manage risks, and monitor legal
               obligations effectively.
             </p>
           </div>
 
           {/* Card 3 */}
-          <div className="flex flex-col items-center md:items-start text-center lg:text-left max-w-xs md:max-w-[280px] mx-auto">
+          <div className="flex flex-col items-center md:items-start text-center lg:text-left max-w-xs md:max-w-[280px] mx-auto card p-4">
             <img
-              src={landingimage3}
+              src={landingimage3 || "/placeholder.svg"}
               alt="For Researchers"
               className="mb-4 w-full h-auto rounded-md shadow-sm"
             />
-            <h3 className="font-semibold text-xl mb-2 text-[#121417]">
+            <h3 className="font-semibold text-xl mb-2 text-[var(--color-primary)]">
               For Researchers
             </h3>
-            <p className="text-gray-700">
+            <p className="text-[var(--color-secondary)]">
               Accelerate legal research, analyze case law, and gain deeper
               insights into legal trends.
             </p>
@@ -182,10 +182,10 @@ const LandingPage = () => {
 
       {/* Call to Action Section */}
       <div className="p-6 flex flex-col items-center justify-center mt-11 space-y-6 max-w-7xl mx-auto">
-        <h2 className="text-3xl font-bold text-[#121417] text-center lg:text-left max-w-4xl">
+        <h2 className="text-3xl font-bold text-[var(--color-primary)] text-center lg:text-left max-w-4xl">
           Ready to Transform Your Legal Workflow?
         </h2>
-        <p className="text-[#121417] text-center lg:text-left max-w-3xl mx-auto md:mx-0">
+        <p className="text-[var(--color-secondary)] text-center lg:text-left max-w-3xl mx-auto md:mx-0">
           Experience the power of LawLens firsthand. Request a demo today and
           discover how our AI-powered platform can revolutionize your legal
           document analysis.
@@ -196,7 +196,7 @@ const LandingPage = () => {
               label="Request Demo"
               isLoading={false}
               onClick={() => ""}
-              otherStyles="bg-blue-500 text-white hover:bg-black/85 w-full"
+              otherStyles="btn btn-secondary w-full"
             />
           </div>
         </div>

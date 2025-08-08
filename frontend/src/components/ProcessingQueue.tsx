@@ -89,7 +89,7 @@ const ProcessingQueue: React.FC<ProcessingQueueProps> = ({ onDocumentUpdate }) =
         return 'Failed';
       default:
         console.log('Unknown status, defaulting to Completed:', apiStatus);
-        return 'Completed'; // Default to completed instead of uploaded
+        return 'Completed';
     }
   };
 
@@ -97,15 +97,15 @@ const ProcessingQueue: React.FC<ProcessingQueueProps> = ({ onDocumentUpdate }) =
   const getStatusStyling = (status: DocumentStatus) => {
     switch (status) {
       case 'Uploaded':
-        return 'bg-blue-100 text-blue-800';
+        return 'badge badge-primary';
       case 'Processing':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'badge badge-secondary';
       case 'Completed':
-        return 'bg-green-100 text-green-800';
+        return 'badge badge-accent';
       case 'Failed':
-        return 'bg-red-100 text-red-800';
+        return 'badge badge-primary';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'badge badge-secondary';
     }
   };
 
@@ -159,18 +159,18 @@ const ProcessingQueue: React.FC<ProcessingQueueProps> = ({ onDocumentUpdate }) =
   }
 
   return (
-    <div className="max-w-4xl mx-auto mt-8 p-6 bg-white border border-gray-200 rounded-lg">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Processing Queue</h2>
+    <div className="max-w-4xl mx-auto mt-8 p-6 card animate-slide-up">
+      <h2 className="text-lg font-semibold text-[var(--color-primary)] mb-4">Processing Queue</h2>
       
       {isLoading ? (
-        <div className="text-center py-4">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="text-sm text-gray-500 mt-2">Loading documents...</p>
+        <div className="text-center py-4" role="status" aria-live="polite">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--color-accent)] mx-auto"></div>
+          <p className="text-sm text-[var(--color-secondary)] mt-2">Loading documents...</p>
         </div>
       ) : (
         <div className="space-y-3">
           {/* Header */}
-          <div className="grid grid-cols-3 gap-4 px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wide border-b border-gray-200">
+          <div className="grid grid-cols-3 gap-4 px-3 py-2 text-xs font-medium text-[var(--color-secondary)] uppercase tracking-wide border-b border-gray-200">
             <div>Document Name</div>
             <div className="text-center">Status</div>
             <div className="text-center">Actions</div>
@@ -180,23 +180,19 @@ const ProcessingQueue: React.FC<ProcessingQueueProps> = ({ onDocumentUpdate }) =
           {documents.map((doc) => (
             <div
               key={doc.id}
-              className="grid grid-cols-3 gap-4 items-center px-3 py-3 bg-gray-50 rounded-md border border-gray-200 hover:bg-gray-100 transition-colors"
+              className="grid grid-cols-3 gap-4 items-center px-3 py-3 rounded-md border border-gray-200 hover:bg-[var(--bg-soft)] transition-colors"
             >
               {/* Document name */}
               <div className="flex items-center min-w-0">
-                <File className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0" />
-                <span className="text-sm font-medium text-gray-900 truncate">
+                <File className="h-4 w-4 text-[var(--color-secondary)] mr-2 flex-shrink-0" />
+                <span className="text-sm font-medium text-[var(--color-primary)] truncate">
                   {doc.name}
                 </span>
               </div>
 
               {/* Status */}
               <div className="flex justify-center">
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyling(
-                    doc.status
-                  )}`}
-                >
+                <span className={getStatusStyling(doc.status)}>
                   {doc.status}
                 </span>
               </div>
@@ -206,17 +202,19 @@ const ProcessingQueue: React.FC<ProcessingQueueProps> = ({ onDocumentUpdate }) =
                 {(doc.status === 'Completed' || doc.status === 'Failed') ? (
                   <button
                     onClick={() => handleViewDocument(doc.id)}
-                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                    className="btn btn-outline-accent text-xs h-9"
+                    aria-label={`View document ${doc.name}`}
                   >
-                    <Eye className="h-3 w-3 mr-1" />
+                    <Eye className="h-3.5 w-3.5 mr-2" />
                     View Document
                   </button>
                 ) : (
                   <button
                     onClick={() => handleCancelDocument(doc.id)}
-                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 hover:text-red-800 transition-colors"
+                    className="btn btn-ghost text-xs h-9"
+                    aria-label={`Cancel processing for ${doc.name}`}
                   >
-                    <X className="h-3 w-3 mr-1" />
+                    <X className="h-3.5 w-3.5 mr-2" />
                     Cancel
                   </button>
                 )}

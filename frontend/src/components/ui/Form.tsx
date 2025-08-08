@@ -5,26 +5,32 @@ const Form = ({ fields, onChange, onSubmit, submitButton }: FormProps) => {
   return (
     <form
       onSubmit={(e) => {
-        e.preventDefault(); 
-        if (onSubmit) onSubmit(e); 
+        e.preventDefault();
+        if (onSubmit) onSubmit(e);
       }}
-      className="flex flex-col gap-5 p-4 w-full md:max-w-md bg-white rounded-2xl"
+      className="flex flex-col gap-5 p-5 w-full md:max-w-md card animate-slide-up"
     >
-      {fields.map((field, index) => (
-        <div key={index} className="flex flex-col gap-3">
-          <label className="text-sm font-semibold text-[#121417]">
-            {field.label}
-          </label>
-          <input
-            placeholder={field.placeholder}
-            name={field.name}
-            type={field.type}
-            onChange={onChange}
-            required={field.required}
-            className="border-none bg-[#F2F2F5] px-4 h-[52px] rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 transition"
-          />
-        </div>
-      ))}
+      {fields.map((field, index) => {
+        const id = `field-${field.name || index}`;
+        return (
+          <div key={index} className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-[var(--color-primary)]" htmlFor={id}>
+              {field.label}
+            </label>
+            <input
+              id={id}
+              placeholder={field.placeholder}
+              name={field.name}
+              type={field.type}
+              onChange={onChange}
+              aria-required={field.required ? "true" : "false"}
+              required={field.required}
+              className="input"
+              autoComplete={field.type === "password" ? "new-password" : "on"}
+            />
+          </div>
+        );
+      })}
       {submitButton && <div>{submitButton}</div>}
     </form>
   );

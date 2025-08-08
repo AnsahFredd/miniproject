@@ -139,14 +139,14 @@ const LegalDocumentSearch = () => {
     <div className="max-w-4xl mx-auto p-6 bg-white">
       <div className="mb-8">
         <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--color-secondary)] w-5 h-5" />
           <input
             type="text"
             placeholder="Search legal documents..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full input h-12 pl-10 pr-4"
           />
         </div>
 
@@ -154,40 +154,41 @@ const LegalDocumentSearch = () => {
           {filters.map(({ id, label, value, setter, options }) => (
             <div className="relative" key={id}>
               <select
+                aria-label={label}
                 value={value}
                 onChange={(e) => setter(e.target.value)}
-                className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
               >
                 <option value="">All Types</option>
                 {options.map((opt) => (
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[var(--color-secondary)] pointer-events-none" />
             </div>
           ))}
         </div>
       </div>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700" role="alert" aria-live="assertive">
           {error}
         </div>
       )}
 
       <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">Search Results</h2>
+        <h2 className="text-xl font-semibold text-[var(--color-primary)] mb-4">Search Results</h2>
         {loading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Searching...</p>
+          <div className="text-center py-8" role="status" aria-live="polite">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-accent)] mx-auto"></div>
+            <p className="mt-2 text-[var(--color-secondary)]">Searching...</p>
           </div>
         ) : searchResults.length === 0 && searchQuery.trim() ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-[var(--color-secondary)]">
             <p>No search results found. Try adjusting your search terms or filters.</p>
           </div>
         ) : searchResults.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-[var(--color-secondary)]">
             <p>Enter a search query to find legal documents.</p>
           </div>
         ) : (
@@ -196,17 +197,17 @@ const LegalDocumentSearch = () => {
               <div key={result.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-start gap-3">
-                    <FileText className="w-5 h-5 text-gray-400 mt-1 flex-shrink-0" />
+                    <FileText className="w-5 h-5 text-[var(--color-secondary)] mt-1 flex-shrink-0" />
                     <div>
-                      <h3 className="font-medium text-gray-900">{result.title}</h3>
-                      <p className="text-sm text-gray-600 mb-2">{result.section}</p>
+                      <h3 className="font-medium text-[var(--color-primary)]">{result.title}</h3>
+                      <p className="text-sm text-[var(--color-secondary)] mb-2">{result.section}</p>
                       <p
-                        className="text-sm text-gray-700"
+                        className="text-sm text-[var(--color-secondary)]"
                         dangerouslySetInnerHTML={{ __html: highlightMatch(result.description, searchQuery) }}
                       />
                     </div>
                   </div>
-                  <span className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                  <span className="text-sm font-medium badge badge-accent" aria-label={`Similarity score ${(result.similarity_score * 100).toFixed(1)} percent`}>
                     {(result.similarity_score * 100).toFixed(1)}%
                   </span>
                 </div>
@@ -217,7 +218,7 @@ const LegalDocumentSearch = () => {
       </div>
 
       <div>
-        <h2 className="text-xl font-semibold mb-4">Question Answering</h2>
+        <h2 className="text-xl font-semibold text-[var(--color-primary)] mb-4">Question Answering</h2>
         <div className="border border-gray-200 rounded-lg p-4">
           <div className="mb-4">
             <input
@@ -226,22 +227,22 @@ const LegalDocumentSearch = () => {
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleQuestionSubmit()}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full input"
             />
             <button
               onClick={handleQuestionSubmit}
               disabled={questionLoading || !question.trim()}
-              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="mt-2 btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {questionLoading ? 'Processing...' : 'Ask Question'}
             </button>
           </div>
 
           {answer && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-              <p className="font-medium text-gray-900 mb-2">Answer:</p>
-              <p className="text-gray-700">{answer}</p>
-              <p className="text-sm text-gray-500 mt-2">Source: Based on search results</p>
+            <div className="mt-4 p-4 card">
+              <p className="font-medium text-[var(--color-primary)] mb-2">Answer:</p>
+              <p className="text-[var(--color-secondary)]">{answer}</p>
+              <p className="text-sm text-[var(--color-secondary)] mt-2">Source: Based on search results</p>
             </div>
           )}
         </div>

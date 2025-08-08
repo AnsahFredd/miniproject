@@ -21,7 +21,6 @@ const ForgotPassword = () => {
     },
   ];
 
-
   const handleInputChnage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
 
@@ -30,7 +29,6 @@ const ForgotPassword = () => {
     }
   };
 
-  
   const handlePasswordReset = async () => {
     setIsLoading(true);
     try {
@@ -46,10 +44,10 @@ const ForgotPassword = () => {
   return (
     <>
       <div className="flex flex-col items-center justify-center mt-12 gap-4">
-        <h1 className="text-4xl font-semibold text-[#121417]">
+        <h1 className="text-4xl font-semibold text-[var(--color-primary)]">
           Forgot password?
         </h1>
-        <p className="text-[#6B7582] text-sm md:text-lg">
+        <p className="text-[var(--color-secondary)] text-sm md:text-lg">
           Enter the email address associated with your account to a link to
           reset your password
         </p>
@@ -58,11 +56,11 @@ const ForgotPassword = () => {
           onClick={handlePasswordReset}
           label="Send reset link"
           isLoading={isloading}
-          otherStyles="bg-black text-white"
+          otherStyles="btn btn-primary"
         />
 
-        <p className="text-[#6B7582] text-sm md:text-lg ml-72">
-          Remember your password? <Link to="/login">Log in</Link>
+        <p className="text-[var(--color-secondary)] text-sm md:text-lg ml-72">
+          Remember your password? <Link to="/login" className="link-accent">Log in</Link>
         </p>
       </div>
     </>

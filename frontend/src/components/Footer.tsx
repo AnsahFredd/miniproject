@@ -3,51 +3,51 @@ import { FaTwitter, FaLinkedin, FaGithub } from "react-icons/fa";
 
 const Footer = () => {
   return (
-    <footer className="bg-gray-900 text-gray-300 py-10 px-6">
-      <div className="max-w-7xl mx-auto flex flex-col items-center text-center gap-10 md:flex-col md:items-center md:text-center lg:grid lg:grid-cols-4 lg:items-start lg:text-left">
+    <footer className="bg-[var(--color-primary)] text-white pt-12 pb-10 px-6 mt-8" role="contentinfo">
+      <div className="max-w-7xl mx-auto grid gap-10 md:grid-cols-2 lg:grid-cols-4">
         {/* Brand */}
         <div>
-          <h2 className="text-2xl font-bold text-white">LawLens</h2>
-          <p className="mt-2 text-sm leading-relaxed">
+          <h2 className="text-2xl font-bold">LawLens</h2>
+          <p className="mt-3 text-sm text-white/90">
             Your AI-powered legal assistant for understanding, summarizing, and
             navigating legal documents with ease.
           </p>
         </div>
 
         {/* Navigation */}
-        <div>
-          <h3 className="text-lg font-semibold text-white mb-3">Navigation</h3>
-          <ul className="space-y-2 text-sm">
+        <nav aria-label="Footer Navigation">
+          <h3 className="text-lg font-semibold mb-3">Navigation</h3>
+          <ul className="space-y-2 text-sm text-white/90">
             <li>
-              <a href="/" className="hover:text-white">
+              <a href="/" className="hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
                 Home
               </a>
             </li>
             <li>
-              <a href="/dashboard" className="hover:text-white">
+              <a href="/dashboard" className="hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
                 Dashboard
               </a>
             </li>
             <li>
-              <a href="/search" className="hover:text-white">
+              <a href="/search" className="hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
                 Search & QA
               </a>
             </li>
             <li>
-              <a href="/settings" className="hover:text-white">
+              <a href="/settings" className="hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
                 Settings
               </a>
             </li>
           </ul>
-        </div>
+        </nav>
 
         {/* Contact */}
         <div>
-          <h3 className="text-lg font-semibold text-white mb-3">Contact</h3>
-          <ul className="space-y-2 text-sm">
+          <h3 className="text-lg font-semibold mb-3">Contact</h3>
+          <ul className="space-y-2 text-sm text-white/90">
             <li>
               Email:{" "}
-              <a href="mailto:support@lawlens.ai" className="hover:text-white">
+              <a href="mailto:support@lawlens.ai" className="hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
                 support@lawlens.ai
               </a>
             </li>
@@ -57,23 +57,17 @@ const Footer = () => {
         </div>
 
         {/* Social */}
-        <div className="flex flex-col items-center justify-center">
-          <h3 className="text-lg font-semibold text-white mb-3">Follow Us</h3>
-          <div className="flex justify-center space-x-4 text-xl">
-            <a href="#" className="hover:text-white">
-              <FaTwitter />
-            </a>
-            <a href="#" className="hover:text-white">
-              <FaLinkedin />
-            </a>
-            <a href="#" className="hover:text-white">
-              <FaGithub />
-            </a>
+        <nav className="flex flex-col items-center lg:items-start" aria-label="Social Links">
+          <h3 className="text-lg font-semibold mb-3">Follow Us</h3>
+          <div className="flex space-x-4 text-xl text-white/90">
+            <a href="#" aria-label="Twitter" className="hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><FaTwitter /></a>
+            <a href="#" aria-label="LinkedIn" className="hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><FaLinkedin /></a>
+            <a href="#" aria-label="GitHub" className="hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><FaGithub /></a>
           </div>
-        </div>
+        </nav>
       </div>
 
-      <div className="mt-10 text-center text-sm text-gray-500">
+      <div className="mt-10 text-center text-sm text-white/80">
         &copy; {new Date().getFullYear()} LawLens. All rights reserved.
       </div>
     </footer>

@@ -134,7 +134,6 @@ const handleLogin = async (e?: React.FormEvent) => {
 
       <div className="flex flex-col items-center justify-center mt-12 gap-4">
         <h1 className="text-4xl font-semibold text-[#121417]">Welcome back</h1>
-
         {/* Confirmation success message */}
         {isConfirmed && status === "success" && (
           <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded w-full max-w-md text-center">
@@ -147,12 +146,11 @@ const handleLogin = async (e?: React.FormEvent) => {
             {error}
             {showResendOption && (
               <div className="mt-2">
-                <button
-                  onClick={handleResendConfirmation}
-                  className="text-blue-600 hover:text-blue-800 underline text-sm"
-                >
-                  Resend confirmation email
-                </button>
+              <button
+              onClick={handleResendConfirmation}
+              className="text-[#A68B7B] hover:text-[#8B6F5C] underline text-sm transition-colors">
+            Resend confirmation email
+            </button>
               </div>
             )}
           </div>
@@ -168,7 +166,7 @@ const handleLogin = async (e?: React.FormEvent) => {
               label={isLoading ? "Signing in..." : "Login"}
               isLoading={isLoading}
               disabled={!email || !password || isLoading}
-              otherStyles="bg-black text-white cursor-pointer hover:bg-[#1f1e1e] disabled:opacity-50 disabled:cursor-not-allowed mx-11 lg:mx-0"
+              otherStyles="btn-outline-accent text-white cursor-pointer w-[300px] disabled:opacity-50 disabled:cursor-not-allowed mx-11 lg:mx-0"
             />
           }
         />
@@ -176,7 +174,8 @@ const handleLogin = async (e?: React.FormEvent) => {
         <div className="w-full max-w-md mr-6 text-right">
           <Link 
             to="/reset-password" 
-            className="text-sm md:text-base text-blue-400 hover:text-blue-300 transition-colors"
+             className="link-accent"
+
           >
             Forgot password?
           </Link>
@@ -184,7 +183,7 @@ const handleLogin = async (e?: React.FormEvent) => {
 
         <p className="text-[#6B7582] mt-8 text-center">
           Don&apos;t have an account?{" "}
-          <Link to="/signup" className="text-blue-500 hover:text-blue-400 transition-colors">
+          <Link to="/signup" className="link-accent">
             Sign up
           </Link>
         </p>

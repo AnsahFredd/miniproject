@@ -13,8 +13,8 @@ const CheckEmail = () => {
 
   return (
     <div className="flex flex-col items-center justify-center mt-20 gap-4">
-      <h1 className="text-3xl font-semibold text-[#121417]">{title}</h1>
-      <p className="text-[#6B7582] text-md max-w-md text-center">{message}</p>
+      <h1 className="text-3xl font-semibold text-[var(--color-primary)]">{title}</h1>
+      <p className="text-[var(--color-secondary)] text-md max-w-md text-center">{message}</p>
     </div>
   );
 };

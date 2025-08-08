@@ -3,7 +3,7 @@ import { useAuth } from "./AuthContext";
 import AuthSpinner from "../components/ui/AuthSpinner";
 import Form from "../components/ui/Form";
 import Button from "../components/ui/Button";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 
 const Signup = () => {
@@ -53,8 +53,7 @@ const Signup = () => {
       />
 
       <form onSubmit={handleSignup} className="flex flex-col gap-6 items-center mt-12">
-        <h1 className="text-3xl font-bold">Sign up to LawLens</h1>
-
+        <h1 className="text-3xl font-bold text-[#121417]">Sign up to LawLens</h1>
         {error && (
           <div className="text-red-600 border border-red-300 p-2 rounded bg-red-100 max-w-md w-full text-center">
             {error}
@@ -67,8 +66,14 @@ const Signup = () => {
               label={loading ? "Signing up..." : "Sign up"}
               isLoading={loading}
               disabled={loading || !form.email || !form.password || !form.name}
-              otherStyles="bg-black text-white hover:bg-gray-900 w-full mx-11 lg:mx-0 max-w-md"
+              otherStyles="btn-primary disabled:opacity-50 disabled:cursor-not-allowed w-full mx-11 lg:mx-0 max-w-md"
             />
+         <p className="text-[#6B7582] mt-4 text-center">
+          Already have an account?{" "}
+          <Link to="/login" className="link-accent">
+            Log in
+          </Link>
+      </p>
           
       </form>
     </>
