@@ -58,9 +58,13 @@ return (
         otherStyles="btn btn-primary"
       />
 
-      <p className="text-[var(--color-secondary)] text-sm md:text-lg ml-60">
-        Remember your password? <Link to="/login" className="link-accent">Log in</Link>
-      </p>
+        <p className="text-[var(--color-secondary)] text-sm md:text-lg flex items-center whitespace-nowrap">
+      Remember your password?&nbsp;
+      <Link to="/login" className="link-accent">
+        Log in
+      </Link>
+    </p>
+
     </div>
   </>
 );
