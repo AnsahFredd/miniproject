@@ -53,28 +53,27 @@ const Signup = () => {
       />
 
       <form onSubmit={handleSignup} className="flex flex-col gap-6 items-center mt-12">
-        <h1 className="text-3xl font-bold text-[#121417]">Sign up to LawLens</h1>
+        <h1 className="text-3xl font-bold text-[var(--color-primary)]">Sign up to LawLens</h1>
         {error && (
-          <div className="text-red-600 border border-red-300 p-2 rounded bg-red-100 max-w-md w-full text-center">
+          <div className="text-[var(--color-primary)] border border-gray-200 p-2 rounded bg-[var(--bg-soft)] max-w-md w-full text-center" role="alert" aria-live="assertive">
             {error}
           </div>
         )}
           
-            <Form fields={fields} onChange={handleChange} />
+        <Form fields={fields} onChange={handleChange} />
 
-            <Button
-              label={loading ? "Signing up..." : "Sign up"}
-              isLoading={loading}
-              disabled={loading || !form.email || !form.password || !form.name}
-              otherStyles="btn-primary disabled:opacity-50 disabled:cursor-not-allowed w-full mx-11 lg:mx-0 max-w-md"
-            />
-         <p className="text-[#6B7582] mt-4 text-center">
+        <Button
+          label={loading ? "Signing up..." : "Sign up"}
+          isLoading={loading}
+          disabled={loading || !form.email || !form.password || !form.name}
+          otherStyles="btn btn-primary w-full mx-11 lg:mx-0 max-w-md"
+        />
+        <p className="text-[var(--color-secondary)] mt-4 text-center">
           Already have an account?{" "}
-          <Link to="/login" className="link-accent">
+          <Link to="/login" className="link-accent transition-colors">
             Log in
           </Link>
-      </p>
-          
+        </p>
       </form>
     </>
   );

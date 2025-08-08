@@ -8,7 +8,7 @@ const Form = ({ fields, onChange, onSubmit, submitButton }: FormProps) => {
         e.preventDefault();
         if (onSubmit) onSubmit(e);
       }}
-      className="flex flex-col gap-5 p-5 w-full md:max-w-md card animate-slide-up"
+      className="flex flex-col gap-5 p-5 w-full md:max-w-md mx-4 md:mx-0 card animate-slide-up"
     >
       {fields.map((field, index) => {
         const id = `field-${field.name || index}`;

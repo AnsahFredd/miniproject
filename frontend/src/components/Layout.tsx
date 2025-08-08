@@ -101,7 +101,7 @@ const Layout = () => {
                       <Link
                         to="/signup"
                         onClick={() => setOpen(false)}
-                        className="btn btn-outline-accent mr-11 block px-4 py-2  text-[var(--color-primary)] rounded"
+                        className="block px-4 py-2 bg-white text-[var(--color-primary)] rounded"
                       >
                         Create an account
                       </Link>

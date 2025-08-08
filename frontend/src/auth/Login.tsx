@@ -14,14 +14,12 @@ const Login: React.FC = () => {
   const [error, setError] = useState("");
   const [showSpinner, setShowSpinner] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-    const [showResendOption, setShowResendOption] = useState(false);
-
+  const [showResendOption, setShowResendOption] = useState(false);
 
   const location = useLocation()
   const params = new URLSearchParams(location.search)
   const isConfirmed = params.get("confirmed") === "true"
   const status = params.get("status")
-
 
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -64,7 +62,7 @@ const Login: React.FC = () => {
       setShowResendOption(false);
     }
   };
-const handleLogin = async (e?: React.FormEvent) => {
+  const handleLogin = async (e?: React.FormEvent) => {
     e?.preventDefault();
 
     if (!email || !password) {
@@ -84,7 +82,6 @@ const handleLogin = async (e?: React.FormEvent) => {
       const errorMessage = err?.message || "Login failed. Please check your credentials.";
       setError(errorMessage);
       
-      // Show resend option if email is not verified
       if (errorMessage.toLowerCase().includes('verify') || 
           errorMessage.toLowerCase().includes('confirm') ||
           errorMessage.toLowerCase().includes('not verified')) {
@@ -102,7 +99,7 @@ const handleLogin = async (e?: React.FormEvent) => {
       return;
     }
 
-     try {
+    try {
       const response = await fetch(`${API}/auth/resend-confirmation`, {
         method: 'POST',
         headers: {
@@ -133,24 +130,24 @@ const handleLogin = async (e?: React.FormEvent) => {
       />
 
       <div className="flex flex-col items-center justify-center mt-12 gap-4">
-        <h1 className="text-4xl font-semibold text-[#121417]">Welcome back</h1>
+        <h1 className="text-4xl font-semibold text-[var(--color-primary)]">Welcome back</h1>
         {/* Confirmation success message */}
         {isConfirmed && status === "success" && (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded w-full max-w-md text-center">
+          <div className="bg-[color:rgb(20_184_166_/_10%)] border border-[color:rgb(20_184_166_/_26%)] text-[var(--color-primary)] px-4 py-3 rounded w-full max-w-md text-center" role="status" aria-live="polite">
             Your email has been confirmed! Please log in.
           </div>
         )}
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded w-full max-w-md">
+          <div className="bg-[var(--bg-soft)] border border-gray-200 text-[var(--color-primary)] px-4 py-3 rounded w-full max-w-md" role="alert" aria-live="assertive">
             {error}
             {showResendOption && (
               <div className="mt-2">
-              <button
-              onClick={handleResendConfirmation}
-              className="text-[#A68B7B] hover:text-[#8B6F5C] underline text-sm transition-colors">
-            Resend confirmation email
-            </button>
+                <button
+                  onClick={handleResendConfirmation}
+                  className="link-accent text-sm transition-colors">
+                  Resend confirmation email
+                </button>
               </div>
             )}
           </div>
@@ -166,7 +163,7 @@ const handleLogin = async (e?: React.FormEvent) => {
               label={isLoading ? "Signing in..." : "Login"}
               isLoading={isLoading}
               disabled={!email || !password || isLoading}
-              otherStyles="btn-outline-accent text-white cursor-pointer w-[300px] disabled:opacity-50 disabled:cursor-not-allowed mx-11 lg:mx-0"
+              otherStyles="btn btn-primary mx-11 lg:mx-0"
             />
           }
         />
@@ -174,16 +171,15 @@ const handleLogin = async (e?: React.FormEvent) => {
         <div className="w-full max-w-md mr-6 text-right">
           <Link 
             to="/reset-password" 
-             className="link-accent"
-
+            className="text-sm md:text-base link-accent transition-colors"
           >
             Forgot password?
           </Link>
         </div>
 
-        <p className="text-[#6B7582] mt-8 text-center">
+        <p className="text-[var(--color-secondary)] mt-8 text-center">
           Don&apos;t have an account?{" "}
-          <Link to="/signup" className="link-accent">
+          <Link to="/signup" className="link-accent transition-colors">
             Sign up
           </Link>
         </p>
