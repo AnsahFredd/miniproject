@@ -42,7 +42,7 @@ const handlePasswordReset = async () => {
 
 return (
   <>
-    <div className="flex flex-col items-center justify-center mt-24 gap-4">
+    <div className="flex flex-col items-center justify-center mt-24 gap-4 px-6">
       <h1 className="text-4xl font-semibold text-[var(--color-primary)]">
         Forgot password?
       </h1>
@@ -58,7 +58,7 @@ return (
         otherStyles="btn btn-primary"
       />
 
-      <p className="text-[var(--color-secondary)] text-sm md:text-lg ml-72">
+      <p className="text-[var(--color-secondary)] text-sm md:text-lg ml-60">
         Remember your password? <Link to="/login" className="link-accent">Log in</Link>
       </p>
     </div>
