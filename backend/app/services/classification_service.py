@@ -1,60 +1,43 @@
 import os
-import logging
-from pathlib import Path
 import re
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
-import torch
-from typing import Dict, List, Optional
-from app.utils.model_loader import load_model_for_classification
+import logging
+from typing import Dict, List, Optional, Tuple
 
+from app.utils.hf_cache import load_pipeline_with_cache
+from app.core.runtime import setup_runtime
+
+setup_runtime()
 logger = logging.getLogger(__name__)
 
-# === Base Paths for Classification Models ===
-CLASSIFICATION_MODEL_DIR = Path(__file__).resolve().parent.parent / "ai/models/InLegalBERT-classification"
-CLASSIFICATION_MODEL_PATH_DIR = Path(__file__).resolve().parent.parent / "ai/models/legal-bert-base-uncased"
-
-CLASSIFICATION_MODEL_DIR = CLASSIFICATION_MODEL_DIR.as_posix()
-CLASSIFICATION_MODEL_PATH_DIR = CLASSIFICATION_MODEL_PATH_DIR.as_posix()
-
-# === Load Classification Model Using Smart Loader ===
-classification_pipeline = None
-
+# Prefer env override; otherwise settings; else default repo id for your custom model
 try:
-    # Try primary model with smart loader
-    model, tokenizer = load_model_for_classification(CLASSIFICATION_MODEL_DIR, "law-ai/InLegalBERT")
-    classification_pipeline = pipeline("text-classification", model=model, tokenizer=tokenizer)
-    logger.info(f"✅ Primary classification model loaded from {CLASSIFICATION_MODEL_DIR}")
-    
-except Exception as e:
-    logger.error(f"❌ Failed to load primary classification model: {e}")
-    
-    # Try alternative model with smart loader
-    try:
-        model, tokenizer = load_model_for_classification(CLASSIFICATION_MODEL_PATH_DIR, "nlpaueb/legal-bert-base-uncased")
-        classification_pipeline = pipeline("text-classification", model=model, tokenizer=tokenizer)
-        logger.info(f"✅ Alternative classification model loaded from {CLASSIFICATION_MODEL_PATH_DIR}")
-        
-    except Exception as e2:
-        logger.error(f"❌ Failed to load alternative classification model: {e2}")
-        
-        # Final fallback - try direct HF loading
-        try:
-            logger.info("🔄 Attempting fallback to direct HuggingFace loading...")
-            model = AutoModelForSequenceClassification.from_pretrained("law-ai/InLegalBERT")
-            tokenizer = AutoTokenizer.from_pretrained("law-ai/InLegalBERT")
-            classification_pipeline = pipeline("text-classification", model=model, tokenizer=tokenizer)
-            logger.info("✅ Fallback classification model loaded successfully")
-            
-        except Exception as fallback_error:
-            logger.error(f"❌ Complete failure to load classification model: {fallback_error}")
-            classification_pipeline = None
+    from core.config import settings
+except Exception:
+    settings = None
 
+def resolve_primary_model() -> str:
+    env_id = os.getenv("CLASSIFICATION_MODEL")
+    if env_id:
+        return env_id
+    if settings and getattr(settings, "CLASSIFICATION_MODEL", None):
+        return str(settings.CLASSIFICATION_MODEL)
+    # If you had a custom repo, set it here or use a small default to avoid memory spikes
+    return "distilbert-base-uncased-finetuned-sst-2-english"
+
+def resolve_alt_model() -> str:
+    env_id = os.getenv("CLASSIFICATION_MODEL_PATH")
+    if env_id:
+        return env_id
+    if settings and getattr(settings, "CLASSIFICATION_MODEL_PATH", None):
+        return str(settings.CLASSIFICATION_MODEL_PATH)
+    return "nlpaueb/legal-bert-base-uncased"
+
+PRIMARY_ID = resolve_primary_model()
+FALLBACKS = [resolve_alt_model(), "nlpaueb/legal-bert-base-uncased"]
 
 class DocumentClassificationService:
     def __init__(self):
-        self.classification_pipeline = classification_pipeline
-        
-        # Legal document type mapping
+        self.classification_pipeline = None
         self.document_types = {
             'contract': ['contract', 'agreement', 'deed', 'covenant', 'compact'],
             'lease': ['lease', 'rental', 'tenancy', 'rent'],
@@ -63,187 +46,126 @@ class DocumentClassificationService:
             'regulation': ['regulation', 'statute', 'law', 'code', 'ordinance'],
             'financial': ['invoice', 'receipt', 'financial', 'budget', 'statement'],
             'correspondence': ['letter', 'memo', 'email', 'correspondence', 'notice'],
-            'report': ['report', 'analysis', 'study', 'review', 'assessment']
+            'report': ['report', 'analysis', 'study', 'review', 'assessment'],
+            'general': []
         }
-        
-        # Priority/urgency keywords
         self.urgency_keywords = {
             'high': ['urgent', 'immediate', 'critical', 'emergency', 'deadline', 'expires'],
             'medium': ['important', 'priority', 'attention', 'review', 'action required'],
             'low': ['information', 'fyi', 'reference', 'notice', 'update']
         }
-        
-        # Legal domain categories
         self.legal_domains = {
             'real_estate': ['property', 'real estate', 'lease', 'rent', 'landlord', 'tenant'],
             'corporate': ['corporation', 'company', 'business', 'merger', 'acquisition'],
             'employment': ['employment', 'employee', 'worker', 'job', 'salary', 'benefits'],
             'intellectual_property': ['patent', 'trademark', 'copyright', 'ip', 'invention'],
             'litigation': ['lawsuit', 'court', 'judge', 'trial', 'plaintiff', 'defendant'],
-            'compliance': ['compliance', 'regulation', 'audit', 'violation', 'penalty']
+            'compliance': ['compliance', 'regulation', 'audit', 'violation', 'penalty'],
+            'general': []
         }
-        
-        model_status = "loaded" if self.classification_pipeline else "failed"
-        logger.info(f"Classification service initialized - model status: {model_status}")
-    
+        logger.info(f"ClassificationService initialized. Primary: {PRIMARY_ID}, fallbacks: {FALLBACKS}")
+
+    def _ensure_model(self):
+        if self.classification_pipeline is not None:
+            return
+        pl, used = load_pipeline_with_cache(
+            "text-classification",
+            PRIMARY_ID,
+            fallbacks=FALLBACKS,
+            device=-1,
+        )
+        self.classification_pipeline = pl
+        if pl is None:
+            logger.warning("Classification model unavailable; will use rule-based classification only.")
+        elif used and used != PRIMARY_ID:
+            logger.warning(f"ClassificationService fell back to {used}")
+
     def classify_document(self, content: str, filename: str = "") -> Dict:
-        """
-        Classify a legal document into various categories.
-        
-        Args:
-            content: Document text content
-            filename: Optional filename for additional context
-            
-        Returns:
-            Dictionary with classification results
-        """
         if not content or len(content.strip()) < 50:
-            return {
-                'document_type': 'unknown',
-                'document_type_confidence': 0.0,
-                'legal_domain': 'general',
-                'legal_domain_confidence': 0.0,
-                'urgency': 'low',
-                'urgency_confidence': 0.0,
-                'extracted_entities': [],
-                'classification_method': 'fallback'
-            }
-        
+            return self._get_fallback_classification(content or "", filename)
+
+        self._ensure_model()
+
+        # Try ML model, then rules as enhancement
+        ml_result = {"document_type": "unknown", "document_type_confidence": 0.0}
         try:
-            # Try ML model classification first
             if self.classification_pipeline:
-                ml_result = self._classify_with_model(content)
-                if ml_result['document_type_confidence'] > 0.7:
-                    # High confidence ML result
-                    ml_result.update(self._classify_with_rules(content, filename))
-                    ml_result['classification_method'] = 'ml_model'
-                    return ml_result
-            
-            # Fallback to rule-based classification
-            rule_result = self._classify_with_rules(content, filename)
-            rule_result['classification_method'] = 'rule_based'
-            return rule_result
-            
+                truncated = content[:2000]  # keep CPU memory bounded
+                result = self.classification_pipeline(truncated)
+                if isinstance(result, list) and result:
+                    pred = result[0]
+                    label = pred.get("label", "unknown").lower()
+                    score = float(pred.get("score", 0.0))
+                    ml_result = {
+                        "document_type": self._map_model_label_to_type(label),
+                        "document_type_confidence": score,
+                        "model_label": label,
+                        "raw_prediction": result,
+                        "classification_method": "ml_model",
+                    }
         except Exception as e:
-            logger.error(f"Classification error: {e}")
-            return self._get_fallback_classification(content, filename)
-    
-    def _classify_with_model(self, content: str) -> Dict:
-        """Use ML model for classification."""
-        try:
-            # Truncate content to model's max length
-            max_length = 512
-            if len(content) > max_length:
-                content = content[:max_length]
-            
-            result = self.classification_pipeline(content)
-            
-            # Process model output
-            if isinstance(result, list) and len(result) > 0:
-                prediction = result[0]
-                label = prediction.get('label', 'unknown').lower()
-                confidence = prediction.get('score', 0.0)
-                
-                # Map model labels to our document types
-                document_type = self._map_model_label_to_type(label)
-                
-                return {
-                    'document_type': document_type,
-                    'document_type_confidence': confidence,
-                    'model_label': label,
-                    'raw_prediction': result
-                }
-            
-        except Exception as e:
-            logger.error(f"Model classification error: {e}")
-        
-        return {
-            'document_type': 'unknown',
-            'document_type_confidence': 0.0
-        }
-    
+            logger.warning(f"ML classification failed: {e}")
+
+        rule_result = self._classify_with_rules(content, filename)
+        # Prefer ML if confident
+        if ml_result["document_type_confidence"] > 0.7:
+            ml_result.update({k: v for k, v in rule_result.items() if k not in ml_result})
+            return ml_result
+        # Else rely mostly on rules
+        rule_result["classification_method"] = "rule_based"
+        return rule_result
+
     def _classify_with_rules(self, content: str, filename: str = "") -> Dict:
-        """Rule-based classification using keyword matching."""
-        content_lower = content.lower()
-        filename_lower = filename.lower() if filename else ""
-        text_to_analyze = content_lower + " " + filename_lower
-        
-        # Document type classification
-        doc_type_scores = {}
-        for doc_type, keywords in self.document_types.items():
-            score = sum(1 for keyword in keywords if keyword in text_to_analyze)
-            if score > 0:
-                doc_type_scores[doc_type] = score
-        
-        best_doc_type = max(doc_type_scores.items(), key=lambda x: x[1]) if doc_type_scores else ('general', 0)
-        doc_type_confidence = min(best_doc_type[1] / 3.0, 1.0)  # Normalize to 0-1
-        
-        # Legal domain classification
-        domain_scores = {}
-        for domain, keywords in self.legal_domains.items():
-            score = sum(1 for keyword in keywords if keyword in text_to_analyze)
-            if score > 0:
-                domain_scores[domain] = score
-        
-        best_domain = max(domain_scores.items(), key=lambda x: x[1]) if domain_scores else ('general', 0)
-        domain_confidence = min(best_domain[1] / 2.0, 1.0)
-        
-        # Urgency classification
-        urgency_scores = {}
-        for urgency, keywords in self.urgency_keywords.items():
-            score = sum(1 for keyword in keywords if keyword in text_to_analyze)
-            if score > 0:
-                urgency_scores[urgency] = score
-        
-        best_urgency = max(urgency_scores.items(), key=lambda x: x[1]) if urgency_scores else ('low', 0)
-        urgency_confidence = min(best_urgency[1] / 2.0, 1.0)
-        
-        # Extract entities
-        entities = self._extract_legal_entities(content)
-        
+        text = (content or "").lower() + " " + (filename or "").lower()
+        # Document type
+        doc_scores = {t: sum(1 for kw in kws if kw in text) for t, kws in self.document_types.items()}
+        best_type = max(doc_scores.items(), key=lambda x: x[1]) if doc_scores else ("general", 0)
+        doc_conf = min(best_type[1] / 3.0, 1.0)
+
+        # Domain
+        dom_scores = {t: sum(1 for kw in kws if kw in text) for t, kws in self.legal_domains.items()}
+        best_dom = max(dom_scores.items(), key=lambda x: x[1]) if dom_scores else ("general", 0)
+        dom_conf = min(best_dom[1] / 2.0, 1.0)
+
+        # Urgency
+        urg_scores = {t: sum(1 for kw in kws if kw in text) for t, kws in self.urgency_keywords.items()}
+        best_urg = max(urg_scores.items(), key=lambda x: x[1]) if urg_scores else ("low", 0)
+        urg_conf = min(best_urg[1] / 2.0, 1.0)
+
+        entities = self._extract_legal_entities(content or "")
+
         return {
-            'document_type': best_doc_type[0],
-            'document_type_confidence': doc_type_confidence,
-            'legal_domain': best_domain[0],
-            'legal_domain_confidence': domain_confidence,
-            'urgency': best_urgency[0],
-            'urgency_confidence': urgency_confidence,
-            'extracted_entities': entities
+            "document_type": best_type[0],
+            "document_type_confidence": doc_conf,
+            "legal_domain": best_dom[0],
+            "legal_domain_confidence": dom_conf,
+            "urgency": best_urg[0],
+            "urgency_confidence": urg_conf,
+            "extracted_entities": entities,
         }
-    
+
     def _extract_legal_entities(self, content: str) -> List[Dict]:
-        """Extract legal entities using regex patterns."""
-        entities = []
-        
-        # Date patterns
-        date_pattern = r'\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b|\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\b'
-        dates = re.findall(date_pattern, content, re.IGNORECASE)
-        for date in dates[:5]:  # Limit to 5 dates
-            entities.append({'type': 'date', 'value': date})
-        
-        # Money amounts
-        money_pattern = r'\$[\d,]+(?:\.\d{2})?'
-        amounts = re.findall(money_pattern, content)
-        for amount in amounts[:5]:  # Limit to 5 amounts
-            entities.append({'type': 'money', 'value': amount})
-        
-        # Legal roles
+        entities: List[Dict] = []
+        # Dates
+        date_re = r'\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b|\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\b'
+        for d in re.findall(date_re, content, re.IGNORECASE)[:5]:
+            entities.append({"type": "date", "value": d})
+        # Money
+        for m in re.findall(r'\$[\d,]+(?:\.\d{2})?', content)[:5]:
+            entities.append({"type": "money", "value": m})
+        # Roles
         role_patterns = {
             'party': r'(?:plaintiff|defendant|appellant|appellee|petitioner|respondent)',
             'legal_entity': r'(?:corporation|llc|inc\.|company|firm)',
             'court': r'(?:court|tribunal|judge|magistrate)'
         }
-        
-        for entity_type, pattern in role_patterns.items():
-            matches = re.findall(pattern, content, re.IGNORECASE)
-            for match in matches[:3]:  # Limit each type
-                entities.append({'type': entity_type, 'value': match})
-        
+        for et, pat in role_patterns.items():
+            for v in re.findall(pat, content, re.IGNORECASE)[:3]:
+                entities.append({"type": et, "value": v})
         return entities
-    
-    def _map_model_label_to_type(self, model_label: str) -> str:
-        """Map model output labels to our document types."""
-        label_mapping = {
+
+    def _map_model_label_to_type(self, label: str) -> str:
+        mapping = {
             'contract': 'contract',
             'agreement': 'contract',
             'lease': 'lease',
@@ -253,27 +175,22 @@ class DocumentClassificationService:
             'regulation': 'regulation',
             'financial': 'financial',
             'correspondence': 'correspondence',
-            'report': 'report'
+            'report': 'report',
         }
-        
-        return label_mapping.get(model_label, 'general')
-    
+        return mapping.get(label, 'general')
+
     def _get_fallback_classification(self, content: str, filename: str) -> Dict:
-        """Fallback classification when everything else fails."""
-        # Very basic classification based on content length and filename
-        content_length = len(content.strip())
-        
-        if 'contract' in filename.lower() or 'agreement' in filename.lower():
+        fname = (filename or "").lower()
+        if 'contract' in fname or 'agreement' in fname:
             doc_type = 'contract'
-        elif 'lease' in filename.lower():
+        elif 'lease' in fname:
             doc_type = 'lease'
-        elif 'brief' in filename.lower() or 'motion' in filename.lower():
+        elif 'brief' in fname or 'motion' in fname:
             doc_type = 'legal_brief'
-        elif content_length > 5000:
+        elif len(content.strip()) > 5000:
             doc_type = 'report'
         else:
             doc_type = 'general'
-        
         return {
             'document_type': doc_type,
             'document_type_confidence': 0.3,
@@ -286,25 +203,15 @@ class DocumentClassificationService:
         }
 
     def get_model_info(self) -> dict:
-        """Return information about the loaded classification model."""
-        try:
-            return {
-                "model_type": "law-ai/InLegalBERT or nlpaueb/legal-bert-base-uncased",
-                "primary_path": CLASSIFICATION_MODEL_DIR,
-                "alternative_path": CLASSIFICATION_MODEL_PATH_DIR,
-                "model_loaded": self.classification_pipeline is not None,
-                "pipeline_task": "text-classification"
-            }
-        except Exception as e:
-            return {
-                "error": str(e),
-                "model_loaded": False
-            }
+        return {
+            "primary": PRIMARY_ID,
+            "fallbacks": FALLBACKS,
+            "loaded": self.classification_pipeline is not None,
+            "task": "text-classification",
+            "cache_dir": os.getenv("TRANSFORMERS_CACHE"),
+        }
 
-
-# Initialize global service instance
 classification_service = DocumentClassificationService()
 
 def classify_document(content: str, filename: str = "") -> Dict:
-    """Convenience function for document classification."""
     return classification_service.classify_document(content, filename)

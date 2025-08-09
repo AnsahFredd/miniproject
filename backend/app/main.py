@@ -90,7 +90,6 @@ app.include_router(document_router, prefix="/api/v1/documents", tags=["Documents
 app.include_router(question_router, prefix="/api/v1/questions", tags=["Questions"])
 app.include_router(document_analysis_router)
 app.include_router(summarize.router, prefix="/api/v1/summarize", tags=["Summarization"])
-# app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
 app.include_router(search_router, prefix="/api/v1/search", tags=["Search"])
 app.include_router(embeddings_router, prefix="/api/v1/embedding", tags=["Embeddings"])
 app.include_router(expiry_extraction_router, prefix="/api/v1/expiry", tags=["Expiry Analysis"])
@@ -106,3 +105,4 @@ if __name__ == "__main__":
         reload=False,  # Set to False in production
         access_log=True
     )
+    

@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     HUGGINGFACE_API_KEY: str
     HUGGINGFACE_CACHE_DIR: str = "./cache"
     HF_HUB_ENABLE_HF_TRANSFER: int = 1
-    HF_HUB_DOWNLOAD_TIMEOUT: int = 1800
+    HF_HUB_DOWNLOAD_TIMEOUT: int = 3600
     MODEL_DOWNLOAD_RETRIES: int = 10
     MODEL_DOWNLOAD_RETRY_DELAY_S: int = 30
 
@@ -37,14 +37,12 @@ class Settings(BaseSettings):
 
     # ── Model Paths ────────────────────────────────────────────────
     # Q&A Models for contract question answering
-    QA_MODEL: str = "app/ai/models/deberta-v3-large"
-    LEGAL_QA_MODEL: str = "app/ai/models/roberta-base-squad2"
-    
-    # Core AI Models
-    SUMMARIZATION_MODEL: str = "app/ai/models/bart-large-cnn"
-    EMBEDDING_MODEL: str = "app/ai/models/InLegalBERT"
-    CLASSIFICATION_MODEL: str = "app/ai/models/InLegalBERT-classification"
-    CLASSIFICATION_MODEL_PATH: str = "app/ai/models/legal-bert-base-uncased"
+    QA_MODEL: str 
+    LEGAL_QA_MODEL: str
+    SUMMARIZATION_MODEL: str 
+    EMBEDDING_MODEL: str 
+    CLASSIFICATION_MODEL: str 
+    CLASSIFICATION_MODEL_PATH: str
 
     # ── Search / Vector Store ──────────────────────────────────────
     VECTOR_STORE_PATH: str = "/data/vector_store"

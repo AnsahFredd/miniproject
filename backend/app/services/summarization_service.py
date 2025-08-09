@@ -1,109 +1,135 @@
 import os
 import logging
-from pathlib import Path
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
-from app.utils.model_loader import load_model_for_summarization
+from typing import List
+
+from app.utils.hf_cache import load_pipeline_with_cache
+from app.core.runtime import setup_runtime
+
+# Ensure runtime env (cache, threads) is configured
+setup_runtime()
 
 logger = logging.getLogger(__name__)
 
-# === Base Path for Summarization Model ===
-MODEL_DIR = Path(__file__).resolve().parent.parent / "ai/models/bart-large-cnn"
-MODEL_DIR = MODEL_DIR.as_posix()
-
-# === Load Summarization Model Using Smart Loader ===
+# Prefer env var, then settings (if present), then a sane default
 try:
-    model, tokenizer = load_model_for_summarization(MODEL_DIR, "facebook/bart-large-cnn")
-    summarizer = pipeline("summarization", model=model, tokenizer=tokenizer)
-    logger.info("✅ Summarization model loaded successfully")
-except Exception as e:
-    logger.error(f"❌ Failed to load summarization model: {e}")
-    # Fallback to direct HuggingFace loading
-    try:
-        logger.info("🔄 Attempting fallback to direct HuggingFace loading...")
-        model = AutoModelForSeq2SeqLM.from_pretrained("facebook/bart-large-cnn")
-        tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
-        summarizer = pipeline("summarization", model=model, tokenizer=tokenizer)
-        logger.info("✅ Fallback summarization model loaded successfully")
-    except Exception as fallback_error:
-        logger.error(f"❌ Complete failure to load summarization model: {fallback_error}")
-        raise fallback_error
+    from core.config import settings  # matches repo layout
+except Exception:
+    settings = None  # optional fallback
 
-def summarize_text(text: str, max_length: int = 130, min_length: int = 30) -> str:
-    """Generate a summary of the provided text."""
-    try:
-        if not text or len(text.strip()) == 0:
-            return "No content to summarize."
-        
-        # Handle very short texts
-        if len(text.split()) < min_length:
-            logger.info("Text too short for summarization, returning original")
-            return text
-        
-        summary = summarizer(
-            text, 
-            max_length=max_length, 
-            min_length=min_length, 
-            do_sample=False,
-            truncation=True
+def resolve_model_id() -> str:
+    # Allow overriding via env
+    env_id = os.getenv("SUMMARIZATION_MODEL")
+    if env_id:
+        return env_id
+    # From settings (could be a repo id string)
+    if settings and getattr(settings, "SUMMARIZATION_MODEL", None):
+        return str(getattr(settings, "SUMMARIZATION_MODEL"))
+    # Default to a smaller model for memory-constrained environments
+    return "sshleifer/distilbart-cnn-12-6"  # smaller than bart-large-cnn
+
+FALLBACKS: List[str] = [
+    "facebook/bart-large-cnn",
+    "philschmid/bart-large-cnn-samsum",
+]
+
+class SummarizationService:
+    def __init__(self):
+        self.model_id = resolve_model_id()
+        self.summarizer = None
+        logger.info(f"SummarizationService initialized. Model candidate: {self.model_id}")
+
+    def _ensure_loaded(self):
+        if self.summarizer is not None:
+            return
+        self.summarizer, used = load_pipeline_with_cache(
+            "summarization",
+            self.model_id,
+            fallbacks=FALLBACKS,
+            device=-1,
         )
-        return summary[0]["summary_text"]
-    
-    except Exception as e:
-        logger.error(f"Error during text summarization: {e}")
-        # Return a fallback response instead of crashing
-        return f"Error generating summary: {str(e)}"
+        if self.summarizer is None:
+            raise RuntimeError("No summarization model available (all candidates failed to load).")
+        if used and used != self.model_id:
+            logger.warning(f"SummarizationService fell back to {used}")
 
-def summarize_text_advanced(
-    text: str, 
-    max_length: int = 130, 
-    min_length: int = 30,
-    do_sample: bool = False,
-    temperature: float = 1.0,
-    top_p: float = 1.0
-) -> str:
-    """
-    Advanced summarization with more control parameters.
-    """
-    try:
-        if not text or len(text.strip()) == 0:
+    def _chunk_text(self, text: str, max_tokens: int = 900) -> list:
+        # Rough token proxy = words; safe for CPU summarization
+        words = text.split()
+        chunks, cur = [], []
+        for w in words:
+            cur.append(w)
+            if len(cur) >= max_tokens:
+                chunks.append(" ".join(cur))
+                cur = []
+        if cur:
+            chunks.append(" ".join(cur))
+        return chunks
+
+    def summarize_text(self, text: str, max_length: int = 130, min_length: int = 30) -> str:
+        if not text or not text.strip():
             return "No content to summarize."
-        
-        # Handle very short texts
-        if len(text.split()) < min_length:
-            logger.info("Text too short for summarization, returning original")
+        self._ensure_loaded()
+
+        words = text.split()
+        if len(words) < min_length:
             return text
-        
-        # Advanced summarization parameters
-        summary = summarizer(
+
+        # For long text, chunk to respect memory constraints
+        if len(words) > 900:
+            pieces = self._chunk_text(text, 900)
+            partials: List[str] = []
+            for i, piece in enumerate(pieces, 1):
+                try:
+                    out = self.summarizer(
+                        piece,
+                        max_length=min(max_length, max(56, len(piece.split()) // 2)),
+                        min_length=min(min_length, max(24, len(piece.split()) // 4)),
+                        do_sample=False,
+                        truncation=True,
+                    )[0]["summary_text"]
+                    partials.append(out)
+                except Exception as e:
+                    logger.warning(f"Chunk {i} summarization failed: {e}")
+            if not partials:
+                return "Error: Could not summarize the text."
+            combined = " ".join(partials)
+            if len(combined.split()) > max_length:
+                # Summarize the summaries
+                final = self.summarizer(
+                    combined,
+                    max_length=max_length,
+                    min_length=min_length,
+                    do_sample=False,
+                    truncation=True,
+                )[0]["summary_text"]
+                return final
+            return combined
+
+        # Short text single pass
+        result = self.summarizer(
             text,
             max_length=max_length,
             min_length=min_length,
-            do_sample=do_sample,
-            temperature=temperature if do_sample else 1.0,
-            top_p=top_p if do_sample else 1.0,
+            do_sample=False,
             truncation=True,
-            clean_up_tokenization_spaces=True
         )
-        
-        return summary[0]["summary_text"]
-    
-    except Exception as e:
-        logger.error(f"Error during advanced text summarization: {e}")
-        return f"Error generating summary: {str(e)}"
+        return result[0]["summary_text"]
+
+    def get_model_info(self) -> dict:
+        return {
+            "model_id": self.model_id,
+            "loaded": self.summarizer is not None,
+            "task": "summarization",
+            "cache_dir": os.getenv("TRANSFORMERS_CACHE"),
+        }
+
+# Backward compatible helpers
+def summarize_text(text: str, max_length: int = 130, min_length: int = 30) -> str:
+    service = SummarizationService()
+    return service.summarize_text(text, max_length, min_length)
 
 def get_model_info() -> dict:
-    """Return information about the loaded summarization model."""
-    try:
-        return {
-            "model_type": "facebook/bart-large-cnn",
-            "local_path": MODEL_DIR,
-            "model_loaded": summarizer is not None,
-            "tokenizer_vocab_size": len(tokenizer) if tokenizer else 0
-        }
-    except Exception as e:
-        return {
-            "error": str(e),
-            "model_loaded": False
-        }
-    
-    
+    service = SummarizationService()
+    return service.get_model_info()
+
+summarization_service = SummarizationService()

@@ -135,7 +135,7 @@ def get_summarization_model(settings):
 
 def get_classification_model(settings):
     """Get classification model based on settings."""
-    return load_model_for_classification(settings.CLASSIFICATION_MODEL_PATH)
+    return load_model_for_classification(settings.CLASSIFICATION_MODEL)
 
 def get_qa_model(settings):
     """Get Q&A model based on settings."""
