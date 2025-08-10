@@ -22,7 +22,7 @@ def resolve_primary_model() -> str:
     if settings and getattr(settings, "CLASSIFICATION_MODEL", None):
         return str(settings.CLASSIFICATION_MODEL)
     # If you had a custom repo, set it here or use a small default to avoid memory spikes
-    return "distilbert-base-uncased-finetuned-sst-2-english"
+    return "AnsahFred/classification_model"
 
 def resolve_alt_model() -> str:
     env_id = os.getenv("CLASSIFICATION_MODEL_PATH")
@@ -32,8 +32,8 @@ def resolve_alt_model() -> str:
         return str(settings.CLASSIFICATION_MODEL_PATH)
     return "nlpaueb/legal-bert-base-uncased"
 
+FALLBACKS = [resolve_alt_model()]
 PRIMARY_ID = resolve_primary_model()
-FALLBACKS = [resolve_alt_model(), "nlpaueb/legal-bert-base-uncased"]
 
 class DocumentClassificationService:
     def __init__(self):
@@ -72,7 +72,7 @@ class DocumentClassificationService:
             "text-classification",
             PRIMARY_ID,
             fallbacks=FALLBACKS,
-            device=-1,
+            local_model_path="ai/models/deberta-v3-large"
         )
         self.classification_pipeline = pl
         if pl is None:

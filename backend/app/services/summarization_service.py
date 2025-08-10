@@ -25,7 +25,7 @@ def resolve_model_id() -> str:
     if settings and getattr(settings, "SUMMARIZATION_MODEL", None):
         return str(getattr(settings, "SUMMARIZATION_MODEL"))
     # Default to a smaller model for memory-constrained environments
-    return "sshleifer/distilbart-cnn-12-6"  # smaller than bart-large-cnn
+    return "AnsahFredd/summarization_model"  # smaller than bart-large-cnn
 
 FALLBACKS: List[str] = [
     "facebook/bart-large-cnn",
@@ -44,6 +44,7 @@ class SummarizationService:
         self.summarizer, used = load_pipeline_with_cache(
             "summarization",
             self.model_id,
+             local_model_path="ai/models/bart-large-cnn",
             fallbacks=FALLBACKS,
             device=-1,
         )

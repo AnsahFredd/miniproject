@@ -8,6 +8,14 @@ import torch
 from typing import Dict, List, Optional
 from app.models.document import AcceptedDocument
 from bson import ObjectId
+from app.core.runtime import setup_runtime
+from app.utils.hf_cache import load_pipeline_with_cache
+
+
+setup_runtime()
+
+logger = logging.getLogger(__name__)
+
 
 # Prefer config but keep loose coupling for environments without settings import
 try:
@@ -15,15 +23,13 @@ try:
 except Exception:
     settings = None
 
-logger = logging.getLogger(__name__)
-
 def resolve_general_qa() -> str:
     env_id = os.getenv("QA_MODEL")
     if env_id:
         return env_id
     if settings and getattr(settings, "QA_MODEL", None):
         return str(settings.QA_MODEL)
-    return "distilbert-base-cased-distilled-squad"  # small default
+    return "AnsahFredd/qa_model"  # small default
 
 def resolve_legal_qa() -> str:
     env_id = os.getenv("LEGAL_QA_MODEL")
@@ -32,7 +38,7 @@ def resolve_legal_qa() -> str:
     if settings and getattr(settings, "LEGAL_QA_MODEL", None):
         return str(settings.LEGAL_QA_MODEL)
     # deepset/roberta-base-squad2 is good but heavy; prefer small fallback first
-    return "deepset/roberta-base-squad2"
+    return "AnsahFredd/legal_qa_model"
 
 GENERAL_QA_ID = resolve_general_qa()
 LEGAL_QA_ID = resolve_legal_qa()
@@ -60,6 +66,7 @@ class QuestionAnsweringService:
         pl, used = load_pipeline_with_cache(
             "question-answering",
             self.general_qa_model_name,
+            local_model_path="ai/models/roberta-base-squad2",
             fallbacks=["distilbert-base-cased-distilled-squad"],
             device=-1,
         )
@@ -75,6 +82,7 @@ class QuestionAnsweringService:
         pl, used = load_pipeline_with_cache(
             "question-answering",
             self.legal_qa_model_name,
+            local_model_path="ai/models/legal-bert-base-uncased",
             # fall back to general small QA if legal model is too heavy
             fallbacks=["deepset/roberta-base-squad2", "distilbert-base-cased-distilled-squad"],
             device=-1,

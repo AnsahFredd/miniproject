@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 import time
 from typing import List, Optional, Dict, Any, Tuple
 
@@ -26,6 +27,14 @@ def hf_login_if_needed() -> None:
         logger.info("Authenticated to Hugging Face Hub with provided token")
     except Exception as e:
         logger.warning(f"Failed to authenticate to Hugging Face Hub: {e}")
+    
+def is_model_cached_locally(repo_id: str) -> bool:
+    """Check if a model repo is alredy cached in_CACHE_DIR"""
+    # Hugging Face cache dir use repo_id with '--' instead of '/'
+    safe_id = repo_id.replace("/", "--")
+    model_dir = Path(_CACHE_DIR) / "models--" / safe_id
+    return model_dir.exists() and any(model_dir.rglob("*"))
+
 
 def snapshot_download_with_retry(
     repo_id: str,
@@ -33,13 +42,20 @@ def snapshot_download_with_retry(
     allow_patterns: Optional[List[str]] = None,
     max_retries: int = 3,
     retry_delay_s: int = 20,
-    timeout: Optional[float] = None,
+    timeout: Optional[float] = None, #Kept for compatibility, not used
 ) -> str:
     """
     Download or reuse local snapshot of a HF repo into the cache dir.
     Returns the local directory path where files are cached.
     """
     hf_login_if_needed()
+    if is_model_cached_locally(repo_id):
+        logger.info(f"[{repo_id}] found in local cache - skipping download.")
+        # Return the existing model path
+        safe_id = repo_id.replace("/", "--")
+        return str(Path(_CACHE_DIR) / "models--" / safe_id)
+    
+    # Try download if not cached
     last_err: Optional[Exception] = None
     for attempt in range(1, max_retries + 1):
         try:
@@ -51,8 +67,7 @@ def snapshot_download_with_retry(
                 allow_patterns=allow_patterns,
                 resume_download=True,
                 local_files_only=False,
-                max_workers=4,
-                timeout=timeout,
+                max_workers=2,
             )
             logger.info(f"[{repo_id}] snapshot available at {local_dir}")
             return local_dir
@@ -74,6 +89,7 @@ def load_pipeline_with_cache(
     task: str,
     primary_id: str,
     *,
+    local_model_path: Optional[str] = None,  # ✅ Added back
     fallbacks: Optional[List[str]] = None,
     device: int = -1,  # -1 = CPU
     model_kwargs: Optional[Dict[str, Any]] = None,
@@ -81,34 +97,28 @@ def load_pipeline_with_cache(
     retries: int = 2,
 ) -> Tuple[Optional[Any], Optional[str]]:
     """
-    Build a transformers pipeline with caching and graceful fallbacks.
-    Returns (pipeline_obj, used_model_id) where pipeline_obj can be None on failure.
+    Build a transformers pipeline with:
+    1. Local folder loading (if provided)
+    2. HF Hub caching if local model is unavailable
+    3. Fallback model IDs if primary fails
     """
     hf_login_if_needed()
     fallbacks = fallbacks or []
     model_kwargs = model_kwargs or {}
     tokenizer_kwargs = tokenizer_kwargs or {}
 
-    tried: List[str] = [primary_id] + fallbacks
     last_err: Optional[Exception] = None
 
-    for model_id in tried:
-        # Prewarm cache via snapshot_download (optional but helps progress/timeout handling)
+    # 1️ Try local folder first
+    if local_model_path and Path(local_model_path).exists():
         try:
-            snapshot_download_with_retry(model_id, max_retries=retries)
-        except Exception as e:
-            logger.warning(f"Prewarm snapshot failed for {model_id}: {e} (will let pipeline handle it)")
-
-        try:
-            logger.info(f"Loading pipeline task={task} model={model_id} (CPU) with cache_dir={_CACHE_DIR}")
+            logger.info(f"Loading pipeline task={task} from local folder: {local_model_path}")
             pl = pipeline(
                 task,
-                model=model_id,
-                tokenizer=model_id,
+                model=local_model_path,
+                tokenizer=local_model_path,
                 device=device,
-                cache_dir=_CACHE_DIR,
                 model_kwargs={
-                    # Reduce memory usage; auto dtype where possible
                     "torch_dtype": "auto",
                     "low_cpu_mem_usage": True,
                     **model_kwargs,
@@ -117,7 +127,38 @@ def load_pipeline_with_cache(
                     "use_fast": True,
                     **tokenizer_kwargs,
                 },
-                # trust_remote_code stays False by default for safety
+            )
+            logger.info(f"Loaded pipeline from local folder {local_model_path}")
+            return pl, local_model_path
+        except Exception as e:
+            last_err = e
+            logger.warning(f"Failed to load pipeline from local folder: {e}")
+
+    # 2️Try HF Hub model(s)
+    tried = [primary_id] + fallbacks
+    for model_id in tried:
+        try:
+            snapshot_download_with_retry(model_id, max_retries=retries)
+        except Exception as e:
+            logger.warning(f"Prewarm snapshot failed for {model_id}: {e}")
+
+        try:
+            logger.info(f"Loading pipeline task={task} model={model_id} with cache_dir={_CACHE_DIR}")
+            pl = pipeline(
+                task,
+                model=model_id,
+                tokenizer=model_id,
+                device=device,
+                cache_dir=_CACHE_DIR,
+                model_kwargs={
+                    "torch_dtype": "auto",
+                    "low_cpu_mem_usage": True,
+                    **model_kwargs,
+                },
+                tokenizer_kwargs={
+                    "use_fast": True,
+                    **tokenizer_kwargs,
+                },
             )
             logger.info(f"Loaded pipeline for {model_id}")
             return pl, model_id

@@ -24,12 +24,14 @@ def resolve_embedding_model_id() -> str:
     except Exception:
         pass
     # Lightweight default that runs on CPU easily
-    return "sentence-transformers/all-MiniLM-L6-v2"
+    return "AnsahFredd/embedding_model"
 
 FALLBACKS = [
     "sentence-transformers/all-MiniLM-L6-v2",
     "sentence-transformers/all-MiniLM-L12-v2",
 ]
+
+
 
 class EmbeddingService:
     def __init__(self):
