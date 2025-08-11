@@ -5,6 +5,8 @@ ENV PIP_NO_CACHE_DIR=1 \
     PYTHONUNBUFFERED=1
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y git
+
 # System deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
