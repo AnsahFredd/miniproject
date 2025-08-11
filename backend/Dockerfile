@@ -24,7 +24,7 @@ RUN pip install --upgrade pip && \
     pip install -r requirements.txt && \
     pip install uvicorn[standard]
 
-# Copy app code
+# Copy only necessary app code (exclude models via .dockerignore)
 COPY . /app
 
 # Create NLTK data directory and try to download punkt
@@ -45,6 +45,7 @@ WORKDIR /app
 # Install minimal runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user first
@@ -53,7 +54,7 @@ RUN useradd --create-home --shell /bin/bash app
 # Copy Python environment from build stage
 COPY --from=build /usr/local /usr/local
 
-# Copy app code and data with proper ownership
+# Copy only necessary app code from build stage
 COPY --from=build --chown=app:app /app /app
 
 # Switch to non-root user
