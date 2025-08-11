@@ -3,54 +3,21 @@ import logging
 from pathlib import Path
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 from app.core.config import settings
-from app.utils.hf_cache import cache_manager
+from app.utils.lazy_model_loader import lazy_loader, require_model
 
 logger = logging.getLogger(__name__)
 
 class SummarizationService:
     def __init__(self):
         self.model_name = settings.SUMMARIZATION_MODEL  # facebook/bart-large-cnn
-        self.summarizer = None
-        self.tokenizer = None
-        self.model = None
         
         logger.info(f"SummarizationService initialized. Model candidate: {self.model_name}")
-        logger.info("Model will be loaded on first use.")
+        logger.info("Model will be loaded on first use (lazy loading).")
     
-    def _load_model(self):
-        """Load summarization model from Hugging Face Hub with cache management"""
-        if self.summarizer is not None:
-            return
-            
-        try:
-            logger.info(f"Loading summarization model: {self.model_name}")
-            
-            self.summarizer = cache_manager.load_model_with_retry(
-                self.model_name, 
-                model_type="summarization"
-            )
-            
-            if self.summarizer is None:
-                raise RuntimeError("Failed to load summarization model")
-                
-            logger.info("✅ Summarization model loaded successfully")
-        except Exception as e:
-            logger.error(f"❌ Failed to load summarization model: {e}")
-            raise
-    
-    def _load_model_components(self):
-        """Load model and tokenizer separately for advanced usage"""
-        if self.model is not None and self.tokenizer is not None:
-            return
-            
-        try:
-            logger.info(f"Loading model components: {self.model_name}")
-            self.model = AutoModelForSeq2SeqLM.from_pretrained(self.model_name)
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-            logger.info("✅ Model components loaded successfully")
-        except Exception as e:
-            logger.error(f"❌ Failed to load model components: {e}")
-            raise
+    @require_model('summarization_primary', settings.SUMMARIZATION_MODEL, 'summarization')
+    def _get_summarizer(self):
+        """Get the loaded summarization pipeline."""
+        return self._current_model
     
     def _chunk_text(self, text: str, max_length: int = 1024) -> list:
         """
@@ -89,9 +56,7 @@ class SummarizationService:
                 logger.info("Text too short for summarization, returning original")
                 return text
             
-            # Load model if not already loaded
-            if self.summarizer is None:
-                self._load_model()
+            summarizer = self._get_summarizer()
             
             # Handle long texts by chunking if necessary
             max_input_tokens = 1024  # BART's approximate max input length
@@ -106,7 +71,7 @@ class SummarizationService:
                 for i, chunk in enumerate(chunks):
                     logger.info(f"Processing chunk {i+1}/{len(chunks)}")
                     try:
-                        summary = self.summarizer(
+                        summary = summarizer(
                             chunk,
                             max_length=min(max_length, len(chunk.split()) // 2),
                             min_length=min(min_length, len(chunk.split()) // 4),
@@ -127,7 +92,7 @@ class SummarizationService:
                 # If combined summary is still too long, summarize again
                 if len(combined_summary.split()) > max_length:
                     logger.info("Re-summarizing combined chunks")
-                    final_summary = self.summarizer(
+                    final_summary = summarizer(
                         combined_summary,
                         max_length=max_length,
                         min_length=min_length,
@@ -139,7 +104,7 @@ class SummarizationService:
                 return combined_summary
             else:
                 # Single pass summarization for shorter texts
-                summary = self.summarizer(
+                summary = summarizer(
                     text,
                     max_length=max_length,
                     min_length=min_length,
@@ -175,9 +140,7 @@ class SummarizationService:
                 logger.info("Text too short for summarization, returning original")
                 return text
             
-            # Load model if not already loaded
-            if self.summarizer is None:
-                self._load_model()
+            summarizer = self._get_summarizer()
             
             # For advanced parameters, we might need to chunk large texts
             if word_count > 1024:
@@ -201,7 +164,7 @@ class SummarizationService:
                     "repetition_penalty": repetition_penalty
                 })
             
-            summary = self.summarizer(text, **generation_kwargs)
+            summary = summarizer(text, **generation_kwargs)
             return summary[0]["summary_text"]
         
         except Exception as e:
@@ -230,7 +193,7 @@ class SummarizationService:
         try:
             return {
                 "model_type": self.model_name,
-                "model_loaded": self.summarizer is not None,
+                "model_loaded": lazy_loader.is_model_loaded('summarization_primary'),
                 "framework": "transformers + pytorch",
                 "pipeline_task": "summarization"
             }

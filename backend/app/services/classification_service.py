@@ -5,7 +5,7 @@ import re
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
 import torch
 from typing import Dict, List, Optional
-from app.utils.hf_cache import cache_manager
+from app.utils.lazy_model_loader import lazy_loader, require_model
 
 logger = logging.getLogger(__name__)
 
@@ -15,62 +15,10 @@ CLASSIFICATION_MODEL_PATH = os.getenv("CLASSIFICATION_MODEL_PATH", "AnsahFredd/c
 
 logger.info(f"ClassificationService initialized. Primary: {CLASSIFICATION_MODEL}, fallbacks: ['nlpaueb/legal-bert-base-uncased']")
 
-# === Load Classification Model with cache management ===
-classification_pipeline = None
-
-try:
-    logger.info(f"🔄 Loading primary classification model: {CLASSIFICATION_MODEL}")
-    
-    classification_pipeline = cache_manager.load_model_with_retry(
-        CLASSIFICATION_MODEL, 
-        model_type="classification"
-    )
-    
-    if classification_pipeline:
-        logger.info("✅ Primary classification model loaded successfully")
-    else:
-        raise RuntimeError("Cache manager returned None")
-    
-except Exception as e:
-    logger.error(f"❌ Failed to load primary classification model: {e}")
-    
-    # Try alternative model
-    try:
-        logger.info(f"🔄 Loading alternative classification model: {CLASSIFICATION_MODEL_PATH}")
-        classification_pipeline = cache_manager.load_model_with_retry(
-            CLASSIFICATION_MODEL_PATH, 
-            model_type="classification"
-        )
-        
-        if classification_pipeline:
-            logger.info("✅ Alternative classification model loaded successfully")
-        else:
-            raise RuntimeError("Cache manager returned None")
-        
-    except Exception as e2:
-        logger.error(f"❌ Failed to load alternative classification model: {e2}")
-        
-        # Final fallback - try a general legal BERT model
-        try:
-            logger.info("🔄 Attempting fallback to nlpaueb/legal-bert-base-uncased...")
-            classification_pipeline = cache_manager.load_model_with_retry(
-                "nlpaueb/legal-bert-base-uncased", 
-                model_type="classification"
-            )
-            
-            if classification_pipeline:
-                logger.info("✅ Fallback classification model loaded successfully")
-            else:
-                raise RuntimeError("Cache manager returned None")
-            
-        except Exception as fallback_error:
-            logger.error(f"❌ Complete failure to load classification model: {fallback_error}")
-            classification_pipeline = None
-
-
 class DocumentClassificationService:
     def __init__(self):
-        self.classification_pipeline = classification_pipeline
+        self.primary_model = CLASSIFICATION_MODEL
+        self.fallback_models = [CLASSIFICATION_MODEL_PATH, "nlpaueb/legal-bert-base-uncased"]
         
         # Legal document type mapping
         self.document_types = {
@@ -101,8 +49,13 @@ class DocumentClassificationService:
             'compliance': ['compliance', 'regulation', 'audit', 'violation', 'penalty']
         }
         
-        model_status = "loaded" if self.classification_pipeline else "failed"
-        logger.info(f"Classification service initialized - model status: {model_status}")
+        logger.info("Classification service initialized with lazy loading")
+    
+    @require_model('classification_primary', CLASSIFICATION_MODEL, 'classification', 
+                   [CLASSIFICATION_MODEL_PATH, "nlpaueb/legal-bert-base-uncased"])
+    def _get_classification_pipeline(self):
+        """Get the loaded classification pipeline."""
+        return self._current_model
     
     def classify_document(self, content: str, filename: str = "") -> Dict:
         """
@@ -128,14 +81,16 @@ class DocumentClassificationService:
             }
         
         try:
-            # Try ML model classification first
-            if self.classification_pipeline:
-                ml_result = self._classify_with_model(content)
+            try:
+                classification_pipeline = self._get_classification_pipeline()
+                ml_result = self._classify_with_model(content, classification_pipeline)
                 if ml_result['document_type_confidence'] > 0.7:
                     # High confidence ML result
                     ml_result.update(self._classify_with_rules(content, filename))
                     ml_result['classification_method'] = 'ml_model'
                     return ml_result
+            except Exception as e:
+                logger.warning(f"ML classification failed, falling back to rules: {e}")
             
             # Fallback to rule-based classification
             rule_result = self._classify_with_rules(content, filename)
@@ -146,7 +101,7 @@ class DocumentClassificationService:
             logger.error(f"Classification error: {e}")
             return self._get_fallback_classification(content, filename)
     
-    def _classify_with_model(self, content: str) -> Dict:
+    def _classify_with_model(self, content: str, classification_pipeline) -> Dict:
         """Use ML model for classification."""
         try:
             # Truncate content to model's max length
@@ -154,7 +109,7 @@ class DocumentClassificationService:
             if len(content) > max_length:
                 content = content[:max_length]
             
-            result = self.classification_pipeline(content)
+            result = classification_pipeline(content)
             
             # Process model output
             if isinstance(result, list) and len(result) > 0:
@@ -306,11 +261,10 @@ class DocumentClassificationService:
     def get_model_info(self) -> dict:
         """Return information about the loaded classification model."""
         try:
-            model_name = CLASSIFICATION_MODEL if self.classification_pipeline else "none"
             return {
-                "model_type": model_name,
-                "alternative_model": CLASSIFICATION_MODEL_PATH,
-                "model_loaded": self.classification_pipeline is not None,
+                "model_type": self.primary_model,
+                "alternative_models": self.fallback_models,
+                "model_loaded": lazy_loader.is_model_loaded('classification_primary'),
                 "pipeline_task": "text-classification",
                 "source": "hugging_face_hub"
             }
@@ -319,7 +273,6 @@ class DocumentClassificationService:
                 "error": str(e),
                 "model_loaded": False
             }
-
 
 # Initialize global service instance
 classification_service = DocumentClassificationService()
