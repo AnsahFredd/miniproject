@@ -1,172 +1,179 @@
+import os
+import shutil
 import logging
 from pathlib import Path
-import time
-from typing import List, Optional, Dict, Any, Tuple
-
-from huggingface_hub import snapshot_download, hf_hub_url, login
-from huggingface_hub.utils import HfHubHTTPError
-from transformers import pipeline
-
-from app.core.runtime import setup_runtime, get_hf_token, get_cache_dir
+from typing import Optional, List
+import tempfile
+from huggingface_hub import snapshot_download, login
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
+from sentence_transformers import SentenceTransformer
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Ensure runtime is configured at import
-_CACHE_DIR = setup_runtime()
-
-def hf_login_if_needed() -> None:
-    """
-    Log into Hugging Face if a token is available.
-    Safe to call multiple times.
-    """
-    token = get_hf_token()
-    if not token:
-        return
-    try:
-        login(token=token, add_to_git_credential=False)
-        logger.info("Authenticated to Hugging Face Hub with provided token")
-    except Exception as e:
-        logger.warning(f"Failed to authenticate to Hugging Face Hub: {e}")
+class HuggingFaceCacheManager:
+    """Manages Hugging Face model cache and handles stale commit issues."""
     
-def is_model_cached_locally(repo_id: str) -> bool:
-    """Check if a model repo is alredy cached in_CACHE_DIR"""
-    # Hugging Face cache dir use repo_id with '--' instead of '/'
-    safe_id = repo_id.replace("/", "--")
-    model_dir = Path(_CACHE_DIR) / "models--" / safe_id
-    return model_dir.exists() and any(model_dir.rglob("*"))
-
-
-def snapshot_download_with_retry(
-    repo_id: str,
-    revision: str = "main",
-    allow_patterns: Optional[List[str]] = None,
-    max_retries: int = 3,
-    retry_delay_s: int = 20,
-    timeout: Optional[float] = None, #Kept for compatibility, not used
-) -> str:
-    """
-    Download or reuse local snapshot of a HF repo into the cache dir.
-    Returns the local directory path where files are cached.
-    """
-    hf_login_if_needed()
-    if is_model_cached_locally(repo_id):
-        logger.info(f"[{repo_id}] found in local cache - skipping download.")
-        # Return the existing model path
-        safe_id = repo_id.replace("/", "--")
-        return str(Path(_CACHE_DIR) / "models--" / safe_id)
+    def __init__(self):
+        self.cache_dir = Path(settings.HUGGINGFACE_CACHE_DIR)
+        self.hf_token = settings.HUGGINGFACE_API_KEY
+        
+        # Authenticate with Hugging Face if token is provided
+        if self.hf_token:
+            try:
+                login(token=self.hf_token, add_to_git_credential=True)
+                logger.info("Authenticated to Hugging Face Hub with provided token")
+            except Exception as e:
+                logger.warning(f"Failed to authenticate with HF Hub: {e}")
     
-    # Try download if not cached
-    last_err: Optional[Exception] = None
-    for attempt in range(1, max_retries + 1):
+    def clear_model_cache(self, model_name: str) -> bool:
+        """Clear cache for a specific model."""
         try:
-            logger.info(f"[{repo_id}] snapshot_download attempt {attempt}/{max_retries}")
-            local_dir = snapshot_download(
-                repo_id=repo_id,
+            # Clear transformers cache
+            transformers_cache = Path.home() / ".cache" / "huggingface" / "transformers"
+            if transformers_cache.exists():
+                for item in transformers_cache.iterdir():
+                    if model_name.replace("/", "--") in item.name:
+                        if item.is_dir():
+                            shutil.rmtree(item)
+                        else:
+                            item.unlink()
+                        logger.info(f"Cleared transformers cache for {model_name}: {item}")
+            
+            # Clear hub cache
+            hub_cache = Path.home() / ".cache" / "huggingface" / "hub"
+            if hub_cache.exists():
+                for item in hub_cache.iterdir():
+                    if model_name.replace("/", "--") in item.name:
+                        if item.is_dir():
+                            shutil.rmtree(item)
+                        else:
+                            item.unlink()
+                        logger.info(f"Cleared hub cache for {model_name}: {item}")
+            
+            # Clear local cache directory
+            if self.cache_dir.exists():
+                for item in self.cache_dir.iterdir():
+                    if model_name.replace("/", "--") in item.name:
+                        if item.is_dir():
+                            shutil.rmtree(item)
+                        else:
+                            item.unlink()
+                        logger.info(f"Cleared local cache for {model_name}: {item}")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to clear cache for {model_name}: {e}")
+            return False
+    
+    def clear_all_cache(self) -> bool:
+        """Clear all Hugging Face caches."""
+        try:
+            cache_dirs = [
+                Path.home() / ".cache" / "huggingface",
+                self.cache_dir
+            ]
+            
+            for cache_dir in cache_dirs:
+                if cache_dir.exists():
+                    shutil.rmtree(cache_dir)
+                    logger.info(f"Cleared cache directory: {cache_dir}")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to clear all caches: {e}")
+            return False
+    
+    def prewarm_model_snapshot(self, model_name: str, revision: str = "main") -> bool:
+        """Pre-download model snapshot to avoid commit hash issues."""
+        try:
+            logger.info(f"Pre-warming snapshot for {model_name} at revision {revision}")
+            
+            snapshot_path = snapshot_download(
+                repo_id=model_name,
                 revision=revision,
-                cache_dir=_CACHE_DIR,
-                allow_patterns=allow_patterns,
-                resume_download=True,
-                local_files_only=False,
-                max_workers=2,
+                cache_dir=str(self.cache_dir),
+                force_download=True,  # Force fresh download
+                resume_download=False,  # Don't resume partial downloads
+                token=self.hf_token
             )
-            logger.info(f"[{repo_id}] snapshot available at {local_dir}")
-            return local_dir
-        except HfHubHTTPError as e:
-            last_err = e
-            logger.warning(f"[{repo_id}] Hub HTTP error: {e}")
+            
+            logger.info(f"Successfully pre-warmed {model_name} to {snapshot_path}")
+            return True
+            
         except Exception as e:
-            last_err = e
-            logger.warning(f"[{repo_id}] snapshot_download failed: {e}")
-        if attempt < max_retries:
-            logger.info(f"[{repo_id}] retrying in {retry_delay_s}s...")
-            time.sleep(retry_delay_s)
-    logger.error(f"Failed to download snapshot for {repo_id} after {max_retries} attempts")
-    if last_err:
-        raise last_err
-    raise RuntimeError(f"Unknown error downloading {repo_id}")
+            logger.error(f"Failed to pre-warm snapshot for {model_name}: {e}")
+            return False
+    
+    def load_model_with_retry(self, model_name: str, model_type: str = "summarization", max_retries: int = 2):
+        """Load model with automatic cache clearing and retry on commit hash errors."""
+        
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Loading {model_type} model {model_name} (attempt {attempt + 1}/{max_retries})")
+                
+                if model_type == "summarization":
+                    pipeline_obj = pipeline(
+                        "summarization",
+                        model=model_name,
+                        tokenizer=model_name,
+                        cache_dir=str(self.cache_dir)
+                    )
+                    return pipeline_obj
+                    
+                elif model_type == "embedding":
+                    model = SentenceTransformer(model_name, cache_folder=str(self.cache_dir))
+                    return model
+                    
+                elif model_type == "classification":
+                    pipeline_obj = pipeline(
+                        "text-classification",
+                        model=model_name,
+                        tokenizer=model_name,
+                        cache_dir=str(self.cache_dir)
+                    )
+                    return pipeline_obj
+                    
+                else:
+                    raise ValueError(f"Unsupported model type: {model_type}")
+                    
+            except Exception as e:
+                error_msg = str(e).lower()
+                
+                # Check if it's a commit hash error
+                if "404" in error_msg and ("resolve" in error_msg or "commit" in error_msg):
+                    logger.warning(f"Detected stale commit hash error for {model_name}: {e}")
+                    
+                    if attempt < max_retries - 1:
+                        logger.info(f"Clearing cache and retrying for {model_name}")
+                        self.clear_model_cache(model_name)
+                        
+                        # Try to pre-warm with latest revision
+                        self.prewarm_model_snapshot(model_name, "main")
+                        continue
+                    else:
+                        logger.error(f"Failed to load {model_name} after {max_retries} attempts")
+                        raise
+                else:
+                    # Different error, don't retry
+                    logger.error(f"Non-cache error loading {model_name}: {e}")
+                    raise
+        
+        return None
 
-def load_pipeline_with_cache(
-    task: str,
-    primary_id: str,
-    *,
-    local_model_path: Optional[str] = None,  # ✅ Added back
-    fallbacks: Optional[List[str]] = None,
-    device: int = -1,  # -1 = CPU
-    model_kwargs: Optional[Dict[str, Any]] = None,
-    tokenizer_kwargs: Optional[Dict[str, Any]] = None,
-    retries: int = 2,
-) -> Tuple[Optional[Any], Optional[str]]:
-    """
-    Build a transformers pipeline with:
-    1. Local folder loading (if provided)
-    2. HF Hub caching if local model is unavailable
-    3. Fallback model IDs if primary fails
-    """
-    hf_login_if_needed()
-    fallbacks = fallbacks or []
-    model_kwargs = model_kwargs or {}
-    tokenizer_kwargs = tokenizer_kwargs or {}
+# Global cache manager instance
+cache_manager = HuggingFaceCacheManager()
 
-    last_err: Optional[Exception] = None
+def clear_model_cache(model_name: str) -> bool:
+    """Convenience function to clear cache for a specific model."""
+    return cache_manager.clear_model_cache(model_name)
 
-    # 1️ Try local folder first
-    if local_model_path and Path(local_model_path).exists():
-        try:
-            logger.info(f"Loading pipeline task={task} from local folder: {local_model_path}")
-            pl = pipeline(
-                task,
-                model=local_model_path,
-                tokenizer=local_model_path,
-                device=device,
-                model_kwargs={
-                    "torch_dtype": "auto",
-                    "low_cpu_mem_usage": True,
-                    **model_kwargs,
-                },
-                tokenizer_kwargs={
-                    "use_fast": True,
-                    **tokenizer_kwargs,
-                },
-            )
-            logger.info(f"Loaded pipeline from local folder {local_model_path}")
-            return pl, local_model_path
-        except Exception as e:
-            last_err = e
-            logger.warning(f"Failed to load pipeline from local folder: {e}")
+def clear_all_cache() -> bool:
+    """Convenience function to clear all caches."""
+    return cache_manager.clear_all_cache()
 
-    # 2️Try HF Hub model(s)
-    tried = [primary_id] + fallbacks
-    for model_id in tried:
-        try:
-            snapshot_download_with_retry(model_id, max_retries=retries)
-        except Exception as e:
-            logger.warning(f"Prewarm snapshot failed for {model_id}: {e}")
-
-        try:
-            logger.info(f"Loading pipeline task={task} model={model_id} with cache_dir={_CACHE_DIR}")
-            pl = pipeline(
-                task,
-                model=model_id,
-                tokenizer=model_id,
-                device=device,
-                cache_dir=_CACHE_DIR,
-                model_kwargs={
-                    "torch_dtype": "auto",
-                    "low_cpu_mem_usage": True,
-                    **model_kwargs,
-                },
-                tokenizer_kwargs={
-                    "use_fast": True,
-                    **tokenizer_kwargs,
-                },
-            )
-            logger.info(f"Loaded pipeline for {model_id}")
-            return pl, model_id
-        except Exception as e:
-            last_err = e
-            logger.warning(f"Failed to load pipeline for {model_id}: {e}")
-
-    logger.error(f"Could not build pipeline for: {tried}")
-    if last_err:
-        logger.error(f"Last error: {last_err}")
-    return None, None
+def load_model_safe(model_name: str, model_type: str = "summarization"):
+    """Safely load a model with automatic cache management."""
+    return cache_manager.load_model_with_retry(model_name, model_type)

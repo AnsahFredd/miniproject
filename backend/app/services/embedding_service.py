@@ -1,138 +1,173 @@
 import os
 import logging
 import numpy as np
+from pathlib import Path
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 from sentence_transformers import SentenceTransformer
-from app.core.runtime import setup_runtime, get_cache_dir
-from app.models.document import AcceptedDocument  # keep original import path used in your app
+import torch
+from app.models.document import AcceptedDocument
+from app.utils.hf_cache import cache_manager
 
-setup_runtime()
 logger = logging.getLogger(__name__)
 
-def resolve_embedding_model_id() -> str:
-    # First prefer env override
-    env_id = os.getenv("EMBEDDING_MODEL")
-    if env_id:
-        return env_id
-    # Try settings if present
+# === Load model name from environment variable ===
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "AnsahFredd/embedding_model")
+logger.info(f"Loading embedding model: {EMBEDDING_MODEL}")
+
+# === Load Embedding Model with cache management ===
+sentence_model = None
+
+try:
+    logger.info(f"🔄 Loading embedding model from Hugging Face: {EMBEDDING_MODEL}")
+    
+    sentence_model = cache_manager.load_model_with_retry(
+        EMBEDDING_MODEL, 
+        model_type="embedding"
+    )
+    
+    if sentence_model:
+        logger.info("✅ Embedding model loaded successfully from Hugging Face")
+    else:
+        raise RuntimeError("Cache manager returned None")
+        
+except Exception as e:
+    logger.error(f"❌ Failed to load embedding model from Hugging Face: {e}")
+    # Fallback to alternative model if your repo fails
     try:
-        from core.config import settings
-        if getattr(settings, "EMBEDDING_MODEL", None):
-            return str(settings.EMBEDDING_MODEL)
-    except Exception:
-        pass
-    # Lightweight default that runs on CPU easily
-    return "AnsahFredd/embedding_model"
+        logger.info("🔄 Attempting fallback to sentence-transformers/all-MiniLM-L6-v2...")
+        sentence_model = cache_manager.load_model_with_retry(
+            "sentence-transformers/all-MiniLM-L6-v2", 
+            model_type="embedding"
+        )
+        
+        if sentence_model:
+            logger.warning("⚠️ Using fallback embedding model")
+        else:
+            raise RuntimeError("Cache manager returned None")
+    except Exception as fallback_error:
+        logger.error(f"❌ Complete failure to load any embedding model: {fallback_error}")
+        raise fallback_error
 
-FALLBACKS = [
-    "sentence-transformers/all-MiniLM-L6-v2",
-    "sentence-transformers/all-MiniLM-L12-v2",
-]
+if sentence_model is None:
+    raise RuntimeError("❌ No embedding model could be loaded!")
 
+# === Helper: Chunk Text for Embedding ===
+def chunk_text(text: str, max_length: int = 512) -> List[str]:
+    """
+    Split long text into manageable chunks based on sentence length.
+    """
+    sentences = text.split(". ")
+    chunks, current = [], ""
+    for sentence in sentences:
+        if len(current) + len(sentence) < max_length:
+            current += sentence + ". "
+        else:
+            chunks.append(current.strip())
+            current = sentence + ". "
+    if current:
+        chunks.append(current.strip())
+    return chunks
 
-
-class EmbeddingService:
-    def __init__(self):
-        self.model_id = resolve_embedding_model_id()
-        self._model: Optional[SentenceTransformer] = None
-        logger.info(f"EmbeddingService initialized. Model candidate: {self.model_id}")
-
-    def _ensure_loaded(self):
-        if self._model is not None:
-            return
-        last_err: Optional[Exception] = None
-        tried = [self.model_id] + [m for m in FALLBACKS if m != self.model_id]
-        for mid in tried:
-            try:
-                logger.info(f"Loading SentenceTransformer {mid} with cache_folder={get_cache_dir()}")
-                self._model = SentenceTransformer(mid, cache_folder=get_cache_dir())
-                logger.info(f"Loaded embedding model: {mid}")
-                if mid != self.model_id:
-                    logger.warning(f"EmbeddingService fell back to {mid}")
-                return
-            except Exception as e:
-                last_err = e
-                logger.warning(f"Failed to load embedding model {mid}: {e}")
-        raise RuntimeError(f"No embedding model available. Last error: {last_err}")
-
-    def generate_embedding(self, text: str) -> List[float]:
-        if not text or not text.strip():
+# === Public: Generate Embedding Vector for Text ===
+def generate_embedding(text: str):
+    """Generate a dense vector embedding for the provided text."""
+    try:
+        if not text or len(text.strip()) == 0:
             logger.warning("Empty text provided for embedding generation")
             return []
-        self._ensure_loaded()
-        vec = self._model.encode(text, normalize_embeddings=True)
-        return vec.tolist()
+        
+        # Standard SentenceTransformer case (simplified since we're loading directly)
+        embedding = sentence_model.encode(text).tolist()
+        
+        logger.debug(f"Generated embedding of dimension: {len(embedding)}")
+        return embedding
+    
+    except Exception as e:
+        logger.error(f"Error during embedding generation: {e}")
+        return []
 
-    def chunk_text(self, text: str, max_length: int = 512) -> List[str]:
-        # Simple sentence split to constrain memory during batch encoding
-        sentences = [s.strip() for s in text.split(". ") if s.strip()]
-        chunks, cur = [], ""
-        for s in sentences:
-            if len(cur) + len(s) + 2 <= max_length:
-                cur = (cur + " " + s).strip()
-            else:
-                if cur:
-                    chunks.append(cur)
-                cur = s
-        if cur:
-            chunks.append(cur)
-        return chunks
-
-    async def generate_and_store_embeddings(self, user_id: str):
-        """
-        Generate embeddings for all accepted docs of user:
-        - Chunks content to reduce memory.
-        - Stores chunk embeddings and an averaged document embedding.
-        """
-        self._ensure_loaded()
-        docs = await AcceptedDocument.find({"user_id": user_id}).to_list()
-        if not docs:
-            return {"message": "No documents found for user."}
+# === Public: Generate and Store Embeddings for User's Documents ===
+async def generate_and_store_embeddings(user_id: str):
+    """
+    Generate and store embeddings for all accepted documents for a given user.
+    - Splits document into chunks
+    - Stores `chunks`, `embedding_chunks`, and `embedding_generated_at`
+    """
+    try:
+        documents = await AcceptedDocument.find({"user_id": user_id}).to_list()
         updated = 0
         skipped = 0
-        for doc in docs:
+
+        if not documents:
+            return {"message": "No documents found for user."}
+
+        for doc in documents:
+            if not doc.content:
+                logger.warning(f"Document {doc.id} has no content, skipping")
+                skipped += 1
+                continue
+
             try:
-                if not getattr(doc, "content", None):
-                    skipped += 1
-                    continue
-                chunks = self.chunk_text(doc.content, 512)
-                # Encode in small batches to keep RAM low
-                embeddings = self._model.encode(chunks, batch_size=8, normalize_embeddings=True)
+                chunks = chunk_text(doc.content)
+                
+                # Generate embeddings for chunks (simplified)
+                embeddings = sentence_model.encode(chunks).tolist()
+
+                # Compute average embedding for full document
                 full_embedding = np.mean(embeddings, axis=0).tolist()
+
+                # Update the document
                 await AcceptedDocument.find_one(AcceptedDocument.id == doc.id).update(
                     {
                         "$set": {
                             "chunks": chunks,
-                            "embedding_chunks": [e.tolist() for e in embeddings],
+                            "embedding_chunks": embeddings,
                             "embedding": full_embedding,
                             "embedding_generated_at": datetime.utcnow(),
                         }
                     }
                 )
                 updated += 1
+                logger.debug(f"Updated embeddings for document {doc.id}")
+                
             except Exception as e:
-                logger.error(f"Failed to embed document {getattr(doc, 'id', '?')}: {e}")
+                logger.error(f"Failed to process document {doc.id}: {e}")
                 skipped += 1
-        return {"message": f"Processed {updated} documents. Skipped {skipped}."}
 
-    def get_model_info(self) -> dict:
+        logger.info(f"Embedding generation completed: {updated} updated, {skipped} skipped")
         return {
-            "model_id": self.model_id,
-            "loaded": self._model is not None,
-            "cache_dir": os.getenv("TRANSFORMERS_CACHE"),
-            "dim": (len(self._model.encode("x")) if self._model else None),
+            "message": f"Processed {updated} documents. Skipped {skipped} (no content or errors)."
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in generate_and_store_embeddings: {e}")
+        return {
+            "error": f"Failed to process embeddings: {str(e)}"
         }
 
-embedding_service = EmbeddingService()
-
-# Backwards-compatible functions
-def generate_embedding(text: str) -> List[float]:
-    return embedding_service.generate_embedding(text)
-
-async def generate_and_store_embeddings(user_id: str):
-    return await embedding_service.generate_and_store_embeddings(user_id)
-
 def get_model_info() -> dict:
-    return embedding_service.get_model_info()
+    """Return information about the loaded embedding model."""
+    try:
+        model_info = {
+            "model_type": EMBEDDING_MODEL,
+            "model_loaded": sentence_model is not None,
+            "is_sentence_transformer": isinstance(sentence_model, SentenceTransformer),
+            "source": "hugging_face_hub"
+        }
+        
+        if isinstance(sentence_model, SentenceTransformer):
+            try:
+                test_embedding = sentence_model.encode("test")
+                model_info["embedding_dimension"] = len(test_embedding)
+            except Exception as e:
+                model_info["embedding_dimension_error"] = str(e)
+        
+        return model_info
+        
+    except Exception as e:
+        return {
+            "error": str(e),
+            "model_loaded": False
+        }
