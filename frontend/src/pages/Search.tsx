@@ -136,8 +136,8 @@ const LegalDocumentSearch = () => {
   }, [searchQuery, documentType, legalDomain, dateRange]);
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white">
-      <div className="mb-8">
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 bg-white">
+      <div className="mb-6 sm:mb-8">
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--color-secondary)] w-5 h-5" />
           <input
@@ -150,14 +150,14 @@ const LegalDocumentSearch = () => {
           />
         </div>
 
-        <div className="flex gap-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4">
           {filters.map(({ id, label, value, setter, options }) => (
-            <div className="relative" key={id}>
+            <div className="relative w-full sm:w-auto" key={id}>
               <select
                 aria-label={label}
                 value={value}
                 onChange={(e) => setter(e.target.value)}
-                className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+                className="w-full appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
               >
                 <option value="">All Types</option>
                 {options.map((opt) => (
@@ -171,13 +171,13 @@ const LegalDocumentSearch = () => {
       </div>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700" role="alert" aria-live="assertive">
+        <div className="mb-4 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg text-red-700" role="alert" aria-live="assertive">
           {error}
         </div>
       )}
 
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold text-[var(--color-primary)] mb-4">Search Results</h2>
+      <div className="mb-6 sm:mb-8">
+        <h2 className="text-lg sm:text-xl font-semibold text-[var(--color-primary)] mb-4">Search Results</h2>
         {loading ? (
           <div className="text-center py-8" role="status" aria-live="polite">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-accent)] mx-auto"></div>
@@ -185,29 +185,29 @@ const LegalDocumentSearch = () => {
           </div>
         ) : searchResults.length === 0 && searchQuery.trim() ? (
           <div className="text-center py-8 text-[var(--color-secondary)]">
-            <p>No search results found. Try adjusting your search terms or filters.</p>
+            <p className="text-sm sm:text-base px-4">No search results found. Try adjusting your search terms or filters.</p>
           </div>
         ) : searchResults.length === 0 ? (
           <div className="text-center py-8 text-[var(--color-secondary)]">
-            <p>Enter a search query to find legal documents.</p>
+            <p className="text-sm sm:text-base px-4">Enter a search query to find legal documents.</p>
           </div>
         ) : (
           <div className="space-y-4">
             {searchResults.map((result) => (
-              <div key={result.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-start gap-3">
+              <div key={result.id} className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-2">
+                  <div className="flex items-start gap-3 flex-1">
                     <FileText className="w-5 h-5 text-[var(--color-secondary)] mt-1 flex-shrink-0" />
-                    <div>
-                      <h3 className="font-medium text-[var(--color-primary)]">{result.title}</h3>
-                      <p className="text-sm text-[var(--color-secondary)] mb-2">{result.section}</p>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-[var(--color-primary)] break-words">{result.title}</h3>
+                      <p className="text-sm text-[var(--color-secondary)] mb-2 break-words">{result.section}</p>
                       <p
-                        className="text-sm text-[var(--color-secondary)]"
+                        className="text-sm text-[var(--color-secondary)] break-words"
                         dangerouslySetInnerHTML={{ __html: highlightMatch(result.description, searchQuery) }}
                       />
                     </div>
                   </div>
-                  <span className="text-sm font-medium badge badge-accent" aria-label={`Similarity score ${(result.similarity_score * 100).toFixed(1)} percent`}>
+                  <span className="text-sm font-medium badge badge-accent mt-2 sm:mt-0 self-start" aria-label={`Similarity score ${(result.similarity_score * 100).toFixed(1)} percent`}>
                     {(result.similarity_score * 100).toFixed(1)}%
                   </span>
                 </div>
@@ -218,8 +218,8 @@ const LegalDocumentSearch = () => {
       </div>
 
       <div>
-        <h2 className="text-xl font-semibold text-[var(--color-primary)] mb-4">Question Answering</h2>
-        <div className="border border-gray-200 rounded-lg p-4">
+        <h2 className="text-lg sm:text-xl font-semibold text-[var(--color-primary)] mb-4">Question Answering</h2>
+        <div className="border border-gray-200 rounded-lg p-3 sm:p-4">
           <div className="mb-4">
             <input
               type="text"
@@ -227,21 +227,21 @@ const LegalDocumentSearch = () => {
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleQuestionSubmit()}
-              className="w-full input"
+              className="w-full input mb-3"
             />
             <button
               onClick={handleQuestionSubmit}
               disabled={questionLoading || !question.trim()}
-              className="mt-2 btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {questionLoading ? 'Processing...' : 'Ask Question'}
             </button>
           </div>
 
           {answer && (
-            <div className="mt-4 p-4 card">
+            <div className="mt-4 p-3 sm:p-4 card">
               <p className="font-medium text-[var(--color-primary)] mb-2">Answer:</p>
-              <p className="text-[var(--color-secondary)]">{answer}</p>
+              <p className="text-[var(--color-secondary)] break-words">{answer}</p>
               <p className="text-sm text-[var(--color-secondary)] mt-2">Source: Based on search results</p>
             </div>
           )}
