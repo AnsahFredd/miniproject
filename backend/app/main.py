@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
@@ -80,6 +80,12 @@ async def health_check():
         "message": "FastAPI server is running",
         "environment": settings.ENV,
     }
+
+@app.get("/")
+async def root():
+    # Get the first CORS origin (your frontend URL)
+    frontend_url = settings.CORS_ORIGINS[0] if settings.CORS_ORIGINS else "https://lawlens-mu.vercel.app/"
+    return RedirectResponse(url=frontend_url)
 
 # Middleware
 app.add_middleware(LoggingMiddleware)
