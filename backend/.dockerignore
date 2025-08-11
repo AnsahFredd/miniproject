@@ -1,0 +1,16 @@
+# Ignore local model files to reduce image size
+ai/models/
+models/
+*.pt
+*.bin
+*.safetensors
+
+# Ignore virtual environments
+venv/
+.env/
+
+# Ignore cache & temp files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
