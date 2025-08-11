@@ -5,12 +5,19 @@ models/
 *.bin
 *.safetensors
 
-# Ignore virtual environments
-venv/
-.env/
-
-# Ignore cache & temp files
-__pycache__/
+.git
+.gitignore
+README.md
+Dockerfile
+.dockerignore
+.env
+__pycache__
 *.pyc
 *.pyo
 *.pyd
+.pytest_cache
+.coverage
+htmlcov/
+.venv
+venv/
+
