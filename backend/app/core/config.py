@@ -117,7 +117,7 @@ class Settings(BaseSettings):
     def model_post_init(self, __context) -> None:
         if self.ENV == "production":
             self.CORS_ORIGINS = [
-                 "lawlens-mu.vercel.app",
+                 "https://lawlens-mu.vercel.app",
                 "https://www.lawlens.com",
             ]
         elif self.ENV == "staging":
