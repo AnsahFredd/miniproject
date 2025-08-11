@@ -1,34 +1,6 @@
 # ---------- Base build image ----------
 FROM python:3.11-slim AS build
-ENV PIP_NO_CACHE_DIR=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-WORKDIR /app
 
-RUN apt-get update && apt-get install -y git
-
-# System deps
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    curl \
-    git \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements early for caching
-COPY requirements.txt .
-
-# Install Python dependencies
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
-
-# Copy app code and local models
-COPY . /app
-
-ENV NLTK_DATA=/app/nltk_data
-ENV HF_HOME=/app/ai/models
-
-# ---------- Runtime image ----------
-FROM python:3.11-slim AS runtime
 ENV PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -37,37 +9,58 @@ ENV PIP_NO_CACHE_DIR=1 \
 
 WORKDIR /app
 
-# System runtime deps
+# Install build dependencies in single layer
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements early for better layer caching
+COPY requirements.txt .
+
+# Install Python dependencies (including uvicorn here to avoid reinstalling later)
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt && \
+    pip install uvicorn[standard]
+
+# Copy app code
+COPY . /app
+
+# Create NLTK data directory and try to download punkt
+RUN mkdir -p /app/nltk_data && \
+    python -c "import nltk; nltk.download('punkt', download_dir='/app/nltk_data')" || echo "NLTK download will happen at runtime"
+
+# ---------- Runtime image ----------
+FROM python:3.11-slim AS runtime
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    NLTK_DATA=/app/nltk_data \
+    HF_HOME=/app/ai/models
+
+WORKDIR /app
+
+# Install minimal runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Create non-root user first
+RUN useradd --create-home --shell /bin/bash app
 
-# Set Hugging Face cache dir
-ENV HF_HOME=/app/ai/models
-
-
-
-
-
-# Copy entire Python env including site-packages
+# Copy Python environment from build stage
 COPY --from=build /usr/local /usr/local
 
-# Copy app code and data
-COPY --from=build /app /app
-RUN pip install uvicorn[standard]
+# Copy app code and data with proper ownership
+COPY --from=build --chown=app:app /app /app
 
-# Create non-root user
-RUN useradd --create-home --shell /bin/bash app && \
-    chown -R app:app /app && \
-    mkdir -p /app/nltk_data && \
-    chown -R app:app /app/nltk_data
+# Switch to non-root user
 USER app
 
-# Try downloading punkt (fails silently if no network)
-RUN python -c "import nltk; nltk.download('punkt', download_dir='/app/nltk_data')" || echo "NLTK download will happen at runtime"
-
-# Port for Render
+# Expose port
 EXPOSE 8000
 
 # Start server
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
