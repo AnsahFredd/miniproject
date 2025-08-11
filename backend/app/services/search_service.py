@@ -59,14 +59,14 @@ async def perform_search(
         query: str, 
         top_k: int, 
         user_id: str, 
-        document_type: Optional[str] = None,
-        legal_domain: Optional[str] = None,
-        date_range: Optional[str] = None
+        documentType: Optional[str] = None,    # ← Change from document_type
+        legalDomain: Optional[str] = None,     # ← Change from legal_domain  
+        dateRange: Optional[str] = None  
         ) -> SearchResponse:
     
     query_embedding = generate_embedding(query)
 
-    top_results = await search_documents(query_embedding, user_id, top_k, document_type=document_type, legal_domain=legal_domain, date_range=date_range)
+    top_results = await search_documents(query_embedding, user_id, top_k, document_type=documentType, legal_domain=legalDomain, date_range=dateRange)
 
     return SearchResponse(results=[
         SearchResult(
