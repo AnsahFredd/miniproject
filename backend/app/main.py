@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
@@ -53,7 +53,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,  # Required for cookies
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
     # max_age=600,  # Cache preflight requests for 10 minutes
 )
@@ -80,6 +80,10 @@ async def health_check():
         "message": "FastAPI server is running",
         "environment": settings.ENV,
     }
+
+@app.get("/")
+async def root():
+    return RedirectResponse(url="https://lawlens-mu.vercel.app/")
 
 # Middleware
 app.add_middleware(LoggingMiddleware)
