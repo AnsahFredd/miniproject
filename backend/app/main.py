@@ -83,9 +83,7 @@ async def health_check():
 
 @app.get("/")
 async def root():
-    # Get the first CORS origin (your frontend URL)
-    frontend_url = settings.CORS_ORIGINS[0] if settings.CORS_ORIGINS else "https://lawlens-mu.vercel.app/"
-    return RedirectResponse(url=frontend_url)
+    return RedirectResponse(url="https://lawlens-mu.vercel.app/")
 
 # Middleware
 app.add_middleware(LoggingMiddleware)
