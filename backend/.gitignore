@@ -1,0 +1,64 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Environment variables and secrets
+.env
+.env.*
+.env*
+
+# Editor/IDE folders
+.vscode/
+.idea/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test and coverage
+.coverage
+coverage.xml
+htmlcov/
+.cache/
+.pytest_cache/
+
+# Mypy and linting
+.mypy_cache/
+.dmypy.json
+.pyre/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Logs
+*.log
+
+# FastAPI specific (optional)
+instance/
+*.db
+*.sqlite3
+
+
+# Docker
+*.pid
+*.sock
+*.tar
+*.log 
+
+docker-compose.override.yml
+
+
+/uploads
+/app/ai
