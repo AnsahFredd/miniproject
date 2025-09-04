@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: lawlens-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: B2_APPLICATION_KEY_ID
+        sync: false
+      - key: B2_APPLICATION_KEY
+        sync: false
+      - key: B2_BUCKET_NAME
+        value: lawlens-models
+      - key: MODEL_CACHE_DIR
+        value: /tmp
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: REDIS_URL
+        value: your_redis_url_here
+    healthCheckPath: /health
+    plan: starter
+
+  # If you need Celery workers on Render (separate service)
+  - type: worker
+    name: lawlens-celery
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A celery_worker worker --loglevel=info --concurrency=2
+    envVars:
+      - key: B2_APPLICATION_KEY_ID
+        sync: false
+      - key: B2_APPLICATION_KEY
+        sync: false
+      - key: B2_BUCKET_NAME
+        value: lawlens-models
+      - key: MODEL_CACHE_DIR
+        value: /tmp
+      - key: REDIS_URL
+        value: your_redis_url_here
+    plan: starter
